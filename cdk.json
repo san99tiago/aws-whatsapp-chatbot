@@ -1,0 +1,19 @@
+{
+  "app": "make clean && make install && python3 cdk/app.py",
+  "context": {
+    "main_resources_name": "aws-wpp",
+    "tags": {
+      "Owner": "Santiago Garcia Arango",
+      "Source": "https://github.com/san99tiago/aws-whatsapp-poc",
+      "Usage": "WhatsApp chatbot deployed on AWS for POC purposes"
+    },
+    "app_config": {
+      "dev": {
+        "deployment_environment": "dev",
+        "log_level": "DEBUG",
+        "table_name": "aws-whatsapp-poc-dev",
+        "api_gw_name": "wpp-poc"
+      }
+    }
+  }
+}
