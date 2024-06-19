@@ -10,7 +10,7 @@ from mangum import Mangum
 from fastapi import FastAPI
 
 # Own imports
-from whatsapp_input.api.v1.routers import webhook
+from whatsapp_chatbot.api.v1.routers import webhook
 
 # Environment used to dynamically load the FastAPI docs with stages
 ENVIRONMENT = os.environ.get("ENVIRONMENT")

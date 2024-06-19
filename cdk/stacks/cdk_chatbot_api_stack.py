@@ -113,11 +113,11 @@ class ChatbotAPIStack(Stack):
         )
 
         # Lambda Function for WhatsApp input messages (Meta WebHook)
-        self.lambda_whatsapp_input: aws_lambda.Function = aws_lambda.Function(
+        self.lambda_whatsapp_webhook: aws_lambda.Function = aws_lambda.Function(
             self,
             "Lambda-WA-Input",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
-            handler="whatsapp_input/api/v1/main.handler",
+            handler="whatsapp_chatbot/api/v1/main.handler",
             code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
             timeout=Duration.seconds(20),
             memory_size=512,
@@ -132,7 +132,7 @@ class ChatbotAPIStack(Stack):
             ],
         )
 
-        self.dynamodb_table.grant_read_write_data(self.lambda_whatsapp_input)
+        self.dynamodb_table.grant_read_write_data(self.lambda_whatsapp_webhook)
 
     def create_rest_api(self):
         """
@@ -155,7 +155,7 @@ class ChatbotAPIStack(Stack):
             "RESTAPI",
             rest_api_name=rest_api_name,
             description=f"REST API Gateway for {self.main_resources_name} in {self.deployment_environment} environment",
-            handler=self.lambda_whatsapp_input,
+            handler=self.lambda_whatsapp_webhook,
             deploy_options=aws_apigw.StageOptions(
                 stage_name=self.deployment_environment,
                 description=f"REST API for {self.main_resources_name}",
@@ -190,7 +190,7 @@ class ChatbotAPIStack(Stack):
 
         # Define all API-Lambda integrations for the API methods
         api_lambda_integration_chatbot = aws_apigw.LambdaIntegration(
-            self.lambda_whatsapp_input
+            self.lambda_whatsapp_webhook
         )
 
         # API-Path: "/api/v1/webhook"

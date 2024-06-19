@@ -1,5 +1,6 @@
 # Built-in imports
 import os
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import uuid4
 
@@ -7,16 +8,21 @@ from uuid import uuid4
 from fastapi import APIRouter, Header, Query, Request, Response, status
 
 # Own imports
-from whatsapp_input.common.logger import custom_logger
+from whatsapp_chatbot.models.text_message_model import TextMessageModel
+from whatsapp_chatbot.helpers.dynamodb_helper import DynamoDBHelper
+from whatsapp_chatbot.common.logger import custom_logger
 
-
-# Meta API Callback Token
+# Initialize the META_API_CALLBACK_TOKEN (pending from Secrets Manager)
 META_API_CALLBACK_TOKEN = "PENDING_ADD_TOKEN_FROM_SECRETS_MANAGER"  # TODO (pending)
 
+# Initialize DynamoDB Helper
+DYNAMODB_TABLE = os.environ["DYNAMODB_TABLE"]
+ENDPOINT_URL = os.environ.get("ENDPOINT_URL")  # Used for local testing
+dynamodb_helper = DynamoDBHelper(table_name=DYNAMODB_TABLE, endpoint_url=ENDPOINT_URL)
 
-logger = custom_logger()
 
 router = APIRouter()
+logger = custom_logger()
 
 
 @router.get("/webhook", tags=["Chatbot"])
@@ -69,11 +75,39 @@ async def post_chatbot_webhook(
         logger.debug(f"PATH_PARAMS: {request.path_params}")
         logger.debug(f"INPUT_BODY: {input_body}")
 
-        # TODO: Validate body and process it accordingly
-        # TODO: Save chatbot data in DynamoDB
-        # TODO: Enhance return
+        # Intentionally break code if parsing fails
+        message = input_body["entry"][0]["changes"][0]["value"]["messages"][0]
+        wpp_from_phone_number = message["from"]
+        wpp_id = message["id"]
+        wpp_timestamp = message["timestamp"]
+        wpp_type = message["type"]
+        created_at = datetime.now(timezone.utc).isoformat()
 
-        result = {"message": "dummy post result"}
+        # Initialize the Message Model based on the type of message
+        message_item = None
+        if wpp_type == "text":
+            message_item = TextMessageModel(
+                PK=f"NUMBER#{wpp_from_phone_number}",
+                SK=f"MESSAGE#{created_at}",
+                from_number=wpp_from_phone_number,
+                created_at=created_at,
+                type=wpp_type,
+                whatsapp_id=wpp_id,
+                whatsapp_timestamp=wpp_timestamp,
+                text=message["text"]["body"],
+            )
+            logger.info(
+                message_item.model_dump(),
+                message_details="Successfully created TextMessageModel instance",
+            )
+        # TODO: Add other types of messages (image, voice, video, etc)
+
+        # Save the message to DynamoDB
+        if message_item:
+            result = dynamodb_helper.put_item(message_item.model_dump())
+            logger.debug(result, message_details="DynamoDB put_item() result")
+
+        result = {"message": "ok", "details": "Received message"}
         return result
 
     except Exception as e:

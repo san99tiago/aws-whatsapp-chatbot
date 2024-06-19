@@ -4,7 +4,7 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 # Own imports
-from whatsapp_input.common.logger import custom_logger
+from whatsapp_chatbot.common.logger import custom_logger
 
 logger = custom_logger()
 
@@ -113,13 +113,13 @@ class DynamoDBHelper:
     def put_item(self, data: dict) -> dict:
         """
         Method to add a single DynamoDB item.
-        :param data (dict): Item to be added in the format of name/value pairs.
+        :param data (dict): Item to be added in a JSON format (without the "S", "N", "B" approach).
         """
         logger.info("Starting put_item operation.")
-        logger.debug(f"data: {data}")
+        logger.debug(data, message_details=f"Data to be added to {self.table_name}")
 
         try:
-            response = self.dynamodb_client.put_item(
+            response = self.table.put_item(
                 TableName=self.table_name,
                 Item=data,
             )
