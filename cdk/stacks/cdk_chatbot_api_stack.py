@@ -118,6 +118,7 @@ class ChatbotAPIStack(Stack):
             "Lambda-WA-Input",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
             handler="whatsapp_chatbot/api/v1/main.handler",
+            function_name=f"{self.main_resources_name}-wpp-input",
             code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
             timeout=Duration.seconds(20),
             memory_size=512,

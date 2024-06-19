@@ -4,7 +4,7 @@ WhatsApp Chatbot on AWS that enables the creation of a customized multi-modal "p
 
 ## Architecture :memo:
 
-TODO: Add detailed Architecture diagram
+<img src="assets/aws-whatsapp-chatbot.png" width=90%> <br>
 
 ## Manual Steps (Only Once) :raised_hand:
 
