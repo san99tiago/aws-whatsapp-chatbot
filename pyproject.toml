@@ -43,8 +43,8 @@ _coverage_html = "coverage html"
 
 [tool.coverage.run]
 branch = true
-source = ["cdk"]
-omit = ["**/__init__.py"]
+source = ["backend", "cdk"]
+omit = ["**/__init__.py", "cdk/app.py"]
 
 [tool.coverage.report]
 show_missing = false
