@@ -1,41 +1,24 @@
-# AWS-WHATSAPP-POC
+# :scroll: AWS-WHATSAPP-CHATBOT :scroll:
 
-These are my initial experiments/playground on creating advanced WhatsApp Chatbots on AWS.
+WhatsApp Chatbot on AWS that enables the creation of a customized multi-modal "personal assistant" for general purposes (customized with my own data and requirements).
 
-## Manual Steps 1 (Configure WhatsApp "Free Tier" Business/API)
+## Architecture :memo:
 
-1. Create "Meta for Developers" account:
+TODO: Add detailed Architecture diagram
 
-   - https://business.facebook.com
-   - https://youtu.be/CEt_KMMv3V8?list=PLX_K_BlBdZKi4GOFmJ9_67og7pMzm2vXH
+## Manual Steps (Only Once) :raised_hand:
 
-2. Create an App:
+### WhatsApp Configurations
 
-   - Select "Type" == "Business"
-   - App Name == "ADD_NAME" (eg "san99tiago")
-   - Contact == "ADD_EMAIL" (eg "san99tiago+meta@gmail.com")
+These steps show the creation of the "Meta Projects" and settings that will allow us to use WhatsApp Business APIs:
 
-3. Enable the "WhatsApp Integration":
+- [WHATSAPP_CONFIGURATION README](./docs/WHATSAPP_CONFIGURATION.md)
 
-   - Click on "Integrate with WhatsApp"
+### AWS Configurations
 
-4. Create a "Business portfolio in Business Manager"
+These steps show the creation of a Secret on AWS that will contain the required tokens/credentials for connecting AWS and Meta APIs.
 
-   - Business Name == "ADD_NAME" (eg "SANTI")
-   - Person's Name == "ADD_NAME" (eg "Santiago Garcia Arango")
-   - Business Email == "ADD_EMAIL" (eg "san99tiago+meta@gmail.com")
-
-5. Configure the "WhatsApp Business API"
-
-   - On the "WhatsApp Business Platform API", select the business portfolio created on "step 4"
-   - Accept terms and conditions and we should be ready to send messages to up to 5 numbers in the free tier!
-   - We will use the given "test number" for now (as we don't want to add a custom number for this PoC)
-   - We can register up to 5 free "recipients" phone numbers in the free tier (eg "our real phone number")
-
-6. As soon as the CDK deployment on AWS finishes, we should be able to provide the "WebHook Endpoint" to the WhatsApp Webhook's "Callback URL":
-
-   - Important: there will be a "Verify Token" that needs to be provided from the service
-   - Then, we can configure the desired incoming events via the "Webhook fields" option on the configuration (eg "messages")
+- [AWS_CONFIGURATION README](./docs/AWS_CONFIGURATION.md)
 
 ## Author 🎹
 
