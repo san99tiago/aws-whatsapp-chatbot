@@ -112,7 +112,7 @@ class ChatbotAPIStack(Stack):
             "backend",
         )
 
-        # Lambda Function for WhatsApp input messages
+        # Lambda Function for WhatsApp input messages (Meta WebHook)
         self.lambda_whatsapp_input: aws_lambda.Function = aws_lambda.Function(
             self,
             "Lambda-WA-Input",
