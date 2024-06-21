@@ -6,6 +6,7 @@ from aws_cdk import (
     Duration,
     aws_dynamodb,
     aws_lambda,
+    aws_lambda_event_sources,
     aws_apigateway as aws_apigw,
     CfnOutput,
     RemovalPolicy,
@@ -70,6 +71,7 @@ class ChatbotAPIStack(Stack):
             sort_key=aws_dynamodb.Attribute(
                 name="SK", type=aws_dynamodb.AttributeType.STRING
             ),
+            stream=aws_dynamodb.StreamViewType.NEW_IMAGE,
             billing_mode=aws_dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.DESTROY,
         )
@@ -132,8 +134,40 @@ class ChatbotAPIStack(Stack):
                 self.lambda_layer_common,
             ],
         )
-
         self.dynamodb_table.grant_read_write_data(self.lambda_whatsapp_webhook)
+
+        # Lambda Function for receiving the messages from DynamoDB Streams
+        # ... and triggering the State Machine for processing the messages
+        self.lambda_trigger_message_processing: aws_lambda.Function = (
+            aws_lambda.Function(
+                self,
+                "Lambda-Trigger-Message-Processing",
+                runtime=aws_lambda.Runtime.PYTHON_3_11,
+                handler="trigger_message_processing/trigger_handler.lambda_handler",
+                function_name=f"{self.main_resources_name}-trigger-msg-processing",
+                code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
+                timeout=Duration.seconds(20),
+                memory_size=512,
+                environment={
+                    "ENVIRONMENT": self.app_config["deployment_environment"],
+                    "LOG_LEVEL": self.app_config["log_level"],
+                    "STATE_MACHINE_ARN": "TBD",
+                },
+                layers=[
+                    self.lambda_layer_powertools,
+                    self.lambda_layer_common,
+                ],
+            )
+        )
+
+        # Stream the DynamoDB Events to the Lambda Function for processing
+        self.lambda_trigger_message_processing.add_event_source(
+            aws_lambda_event_sources.DynamoEventSource(
+                self.dynamodb_table,
+                starting_position=aws_lambda.StartingPosition.TRIM_HORIZON,
+                batch_size=1,
+            )
+        )
 
     def create_rest_api(self):
         """

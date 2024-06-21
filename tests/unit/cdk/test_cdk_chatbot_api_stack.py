@@ -36,7 +36,7 @@ def test_lambda_function_created():
     match = template.find_resources(
         type="AWS::Lambda::Function",
     )
-    assert len(match) == 1
+    assert len(match) == 2
 
 
 def test_api_gateway_created():

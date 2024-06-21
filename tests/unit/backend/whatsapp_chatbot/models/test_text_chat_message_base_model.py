@@ -1,10 +1,16 @@
 import pytest
+from uuid import uuid4
 from backend.whatsapp_chatbot.models.message_base_model import MessageBaseModel
 from backend.whatsapp_chatbot.models.text_message_model import TextMessageModel
 
 
+@pytest.fixture(scope="package")  # used for all tests
+def correlation_id():
+    return str(uuid4())
+
+
 @pytest.fixture
-def chat_message_base_model() -> MessageBaseModel:
+def chat_message_base_model(correlation_id) -> MessageBaseModel:
     return MessageBaseModel(
         PK="NUMBER#12345678987",
         SK="MESSAGE#2024-06-19 03:41:42.269532+00:00",
@@ -13,6 +19,7 @@ def chat_message_base_model() -> MessageBaseModel:
         type="text",
         whatsapp_id="wamid.DBgMATczCjA2ODI5MTg5FQICBhgUM0FCOUMzNxUxNkT2RUM2OTU5QTIA",
         whatsapp_timestamp="1718768502",
+        correlation_id=correlation_id,
     )
 
 
@@ -26,7 +33,9 @@ def chat_message_text_model(
     )
 
 
-def test_chat_message_text_model(chat_message_text_model: TextMessageModel):
+def test_chat_message_text_model(
+    chat_message_text_model: TextMessageModel, correlation_id
+):
     # Check the model attributes
     assert chat_message_text_model.PK == "NUMBER#12345678987"
     assert chat_message_text_model.SK == "MESSAGE#2024-06-19 03:41:42.269532+00:00"
@@ -38,6 +47,7 @@ def test_chat_message_text_model(chat_message_text_model: TextMessageModel):
         == "wamid.DBgMATczCjA2ODI5MTg5FQICBhgUM0FCOUMzNxUxNkT2RUM2OTU5QTIA"
     )
     assert chat_message_text_model.whatsapp_timestamp == "1718768502"
+    assert chat_message_text_model.correlation_id is correlation_id
     assert chat_message_text_model.text == "Hello by Santi!"
 
     # Check the model_dump() method
@@ -50,6 +60,7 @@ def test_chat_message_text_model(chat_message_text_model: TextMessageModel):
         "type": "text",
         "whatsapp_id": "wamid.DBgMATczCjA2ODI5MTg5FQICBhgUM0FCOUMzNxUxNkT2RUM2OTU5QTIA",
         "whatsapp_timestamp": "1718768502",
+        "correlation_id": correlation_id,
         "text": "Hello by Santi!",
     }
 
@@ -66,6 +77,7 @@ def test_chat_message_text_model_from_dynamodb_item():
             "S": "wamid.DBgMATczCjA2ODI5MTg5FQICBhgUM0FCOUMzNxUxNkT2RUM2OTU5QTIA"
         },
         "whatsapp_timestamp": {"S": "1718768502"},
+        "correlation_id": {"S": str(uuid4())},
     }
 
     chat_message_instance = TextMessageModel.from_dynamodb_item(dynamodb_item)

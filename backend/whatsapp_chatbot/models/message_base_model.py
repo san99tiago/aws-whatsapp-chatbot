@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -13,6 +14,7 @@ class MessageBaseModel(BaseModel):
         type: str: Type of message (text, image, video, etc).
         whatsapp_id: str: WhatsApp ID of the message.
         whatsapp_timestamp: str: WhatsApp timestamp of the message.
+        correlation_id: Optional(str): Correlation ID for the message.
     """
 
     PK: str = Field(pattern=r"^NUMBER#\d{10,13}$")
@@ -22,6 +24,7 @@ class MessageBaseModel(BaseModel):
     type: str
     whatsapp_id: str
     whatsapp_timestamp: str
+    correlation_id: Optional[str] = None
 
     @classmethod
     def from_dynamodb_item(cls, dynamodb_item: dict) -> "MessageBaseModel":
@@ -33,4 +36,5 @@ class MessageBaseModel(BaseModel):
             created_at=dynamodb_item["created_at"]["S"],
             whatsapp_timestamp=dynamodb_item["whatsapp_timestamp"]["S"],
             type=dynamodb_item["type"]["S"],
+            correlation_id=dynamodb_item.get("correlation_id", {}).get("S"),
         )

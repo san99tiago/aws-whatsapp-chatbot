@@ -29,9 +29,9 @@ logger = custom_logger()
 async def get_chatbot_webhook(
     hub_challenge_query_param: str = Query(..., alias="hub.challenge"),
     hub_verify_token_query_param: str = Query(..., alias="hub.verify_token"),
-    correlation_id: Annotated[str | None, Header()] = uuid4(),
 ):
     try:
+        correlation_id = str(uuid4())
         logger.append_keys(correlation_id=correlation_id)
         logger.info("Started chatbot handler for get_chatbot_webhook()")
         logger.info("Finished get_chatbot_webhook() successfully")
@@ -59,9 +59,9 @@ async def get_chatbot_webhook(
 async def post_chatbot_webhook(
     request: Request,  # Only for initial debugging purposes
     input_body: dict,
-    correlation_id: Annotated[str | None, Header()] = uuid4(),
 ):
     try:
+        correlation_id = str(uuid4())
         logger.append_keys(correlation_id=correlation_id)
         logger.info(
             input_body, message_details="Received body in post_chatbot_webhook()"
@@ -95,6 +95,7 @@ async def post_chatbot_webhook(
                 whatsapp_id=wpp_id,
                 whatsapp_timestamp=wpp_timestamp,
                 text=message["text"]["body"],
+                correlation_id=correlation_id,
             )
             logger.info(
                 message_item.model_dump(),
