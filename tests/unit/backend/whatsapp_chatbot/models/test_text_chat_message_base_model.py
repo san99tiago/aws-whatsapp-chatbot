@@ -1,7 +1,7 @@
 import pytest
 from uuid import uuid4
-from backend.whatsapp_chatbot.models.message_base_model import MessageBaseModel
-from backend.whatsapp_chatbot.models.text_message_model import TextMessageModel
+from backend.whatsapp_webhook.models.message_base_model import MessageBaseModel
+from backend.whatsapp_webhook.models.text_message_model import TextMessageModel
 
 
 @pytest.fixture(scope="package")  # used for all tests

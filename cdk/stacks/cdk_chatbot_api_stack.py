@@ -49,6 +49,7 @@ class ChatbotAPIStack(Stack):
         self.create_dynamodb_table()
         self.create_lambda_layers()
         self.create_lambda_functions()
+        self.create_dynamodb_streams()
         self.create_rest_api()
         self.configure_rest_api()
         # TODO: Add DynamoDB Streams
@@ -117,9 +118,9 @@ class ChatbotAPIStack(Stack):
         # Lambda Function for WhatsApp input messages (Meta WebHook)
         self.lambda_whatsapp_webhook: aws_lambda.Function = aws_lambda.Function(
             self,
-            "Lambda-WA-Input",
+            "Lambda-WhatsApp-Webhook",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
-            handler="whatsapp_chatbot/api/v1/main.handler",
+            handler="whatsapp_webhook/api/v1/main.handler",
             function_name=f"{self.main_resources_name}-wpp-input",
             code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
             timeout=Duration.seconds(20),
@@ -159,6 +160,36 @@ class ChatbotAPIStack(Stack):
                 ],
             )
         )
+
+        # Lambda Function that will run the State Machine steps for processing the messages
+        # TODO: In the future, can be migrated to MULTIPLE Lambda Functions for each step...
+        self.lambda_state_machine_process_message: aws_lambda.Function = (
+            aws_lambda.Function(
+                self,
+                "Lambda-SM-Process-Message",
+                runtime=aws_lambda.Runtime.PYTHON_3_11,
+                handler="trigger_message_processing/trigger_handler.lambda_handler",
+                function_name=f"{self.main_resources_name}-trigger-msg-processing",
+                code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
+                timeout=Duration.seconds(20),
+                memory_size=512,
+                environment={
+                    "ENVIRONMENT": self.app_config["deployment_environment"],
+                    "LOG_LEVEL": self.app_config["log_level"],
+                    "STATE_MACHINE_ARN": "TBD",
+                },
+                layers=[
+                    self.lambda_layer_powertools,
+                    self.lambda_layer_common,
+                ],
+            )
+        )
+
+    def create_dynamodb_streams(self) -> None:
+        """
+        Method to create the DynamoDB Streams for the Lambda Function that will
+        process the incoming messages and trigger the State Machine.
+        """
 
         # Stream the DynamoDB Events to the Lambda Function for processing
         self.lambda_trigger_message_processing.add_event_source(

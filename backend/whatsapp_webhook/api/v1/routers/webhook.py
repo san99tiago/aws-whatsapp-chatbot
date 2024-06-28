@@ -8,9 +8,9 @@ from uuid import uuid4
 from fastapi import APIRouter, Header, Query, Request, Response, status
 
 # Own imports
-from whatsapp_chatbot.models.text_message_model import TextMessageModel
-from whatsapp_chatbot.helpers.dynamodb_helper import DynamoDBHelper
-from whatsapp_chatbot.common.logger import custom_logger
+from whatsapp_webhook.models.text_message_model import TextMessageModel
+from whatsapp_webhook.helpers.dynamodb_helper import DynamoDBHelper
+from whatsapp_webhook.common.logger import custom_logger
 
 # Initialize the META_API_CALLBACK_TOKEN (pending from Secrets Manager)
 META_API_CALLBACK_TOKEN = "PENDING_ADD_TOKEN_FROM_SECRETS_MANAGER"  # TODO (pending)

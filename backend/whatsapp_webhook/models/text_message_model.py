@@ -1,4 +1,4 @@
-from whatsapp_chatbot.models.message_base_model import MessageBaseModel
+from whatsapp_webhook.models.message_base_model import MessageBaseModel
 
 
 class TextMessageModel(MessageBaseModel):
