@@ -31,7 +31,21 @@ class BaseStepFunction:
         self.logger.info(event, message_details="Received Event")
 
         self.message_type: str = self.event.get("message_type")
-        self.correlation_id: str = self.event.get("correlation_id", str(uuid.uuid4()))
+
+        # Load correlation ID from event, from DynamoDB Stream or generate a new one
+        correlation_id_from_event = self.event.get("correlation_id")
+        correlation_id_from_dynamo = (
+            self.event.get("input", {})
+            .get("dynamodb", {})
+            .get("NewImage", {})
+            .get("correlation_id", {})
+            .get("S")
+        )
+        self.correlation_id: str = (
+            correlation_id_from_event or correlation_id_from_dynamo or str(uuid.uuid4())
+        )
+
+        # TODO: Also include the phone number in the appended keys
 
         self.logger.append_keys(
             correlation_id=self.correlation_id,

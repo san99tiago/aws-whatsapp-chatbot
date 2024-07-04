@@ -120,12 +120,12 @@ class ChatbotAPIStack(Stack):
         )
 
         # Lambda Function for WhatsApp input messages (Meta WebHook)
-        self.lambda_whatsapp_webhook: aws_lambda.Function = aws_lambda.Function(
+        self.lambda_whatsapp_webhook = aws_lambda.Function(
             self,
             "Lambda-WhatsApp-Webhook",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
             handler="whatsapp_webhook/api/v1/main.handler",
-            function_name=f"{self.main_resources_name}-wpp-input",
+            function_name=f"{self.main_resources_name}-input",
             code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
             timeout=Duration.seconds(20),
             memory_size=512,
@@ -143,50 +143,45 @@ class ChatbotAPIStack(Stack):
 
         # Lambda Function for receiving the messages from DynamoDB Streams
         # ... and triggering the State Machine for processing the messages
-        self.lambda_trigger_message_processing: aws_lambda.Function = (
-            aws_lambda.Function(
-                self,
-                "Lambda-Trigger-Message-Processing",
-                runtime=aws_lambda.Runtime.PYTHON_3_11,
-                handler="trigger/trigger_handler.lambda_handler",
-                function_name=f"{self.main_resources_name}-trigger-msg-processing",
-                code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
-                timeout=Duration.seconds(20),
-                memory_size=512,
-                environment={
-                    "ENVIRONMENT": self.app_config["deployment_environment"],
-                    "LOG_LEVEL": self.app_config["log_level"],
-                    "STATE_MACHINE_ARN": "TBD",
-                },
-                layers=[
-                    self.lambda_layer_powertools,
-                    self.lambda_layer_common,
-                ],
-            )
+        self.lambda_trigger_state_machine = aws_lambda.Function(
+            self,
+            "Lambda-Trigger-Message-Processing",
+            runtime=aws_lambda.Runtime.PYTHON_3_11,
+            handler="trigger/trigger_handler.lambda_handler",
+            function_name=f"{self.main_resources_name}-trigger-state-machine",
+            code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
+            timeout=Duration.seconds(20),
+            memory_size=512,
+            environment={
+                "ENVIRONMENT": self.app_config["deployment_environment"],
+                "LOG_LEVEL": self.app_config["log_level"],
+            },
+            layers=[
+                self.lambda_layer_powertools,
+                self.lambda_layer_common,
+            ],
         )
 
         # Lambda Function that will run the State Machine steps for processing the messages
         # TODO: In the future, can be migrated to MULTIPLE Lambda Functions for each step...
-        self.lambda_state_machine_process_message: aws_lambda.Function = (
-            aws_lambda.Function(
-                self,
-                "Lambda-SM-Process-Message",
-                runtime=aws_lambda.Runtime.PYTHON_3_11,
-                handler="state_machine/trigger_handler.lambda_handler",
-                function_name=f"{self.main_resources_name}-trigger-msg-processing",
-                code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
-                timeout=Duration.seconds(60),
-                memory_size=512,
-                environment={
-                    "ENVIRONMENT": self.app_config["deployment_environment"],
-                    "LOG_LEVEL": self.app_config["log_level"],
-                    "STATE_MACHINE_ARN": "TBD",
-                },
-                layers=[
-                    self.lambda_layer_powertools,
-                    self.lambda_layer_common,
-                ],
-            )
+        self.lambda_state_machine_process_message = aws_lambda.Function(
+            self,
+            "Lambda-SM-Process-Message",
+            runtime=aws_lambda.Runtime.PYTHON_3_11,
+            handler="state_machine/state_machine_handler.lambda_handler",
+            function_name=f"{self.main_resources_name}-state-machine-lambda",
+            code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
+            timeout=Duration.seconds(60),
+            memory_size=512,
+            environment={
+                "ENVIRONMENT": self.app_config["deployment_environment"],
+                "LOG_LEVEL": self.app_config["log_level"],
+                "STATE_MACHINE_ARN": "TBD",
+            },
+            layers=[
+                self.lambda_layer_powertools,
+                self.lambda_layer_common,
+            ],
         )
 
     def create_dynamodb_streams(self) -> None:
@@ -196,7 +191,7 @@ class ChatbotAPIStack(Stack):
         """
 
         # Stream the DynamoDB Events to the Lambda Function for processing
-        self.lambda_trigger_message_processing.add_event_source(
+        self.lambda_trigger_state_machine.add_event_source(
             aws_lambda_event_sources.DynamoEventSource(
                 self.dynamodb_table,
                 starting_position=aws_lambda.StartingPosition.TRIM_HORIZON,
@@ -297,6 +292,35 @@ class ChatbotAPIStack(Stack):
             output_path="$.Payload",
         )
 
+        # Pass States to simplify State Machine UI understanding
+        self.task_pass_text = aws_sfn.Pass(
+            self,
+            "Task-Text",
+            comment="Indicates that the message type is Text",
+            state_name="Text",
+        )
+
+        self.task_pass_voice = aws_sfn.Pass(
+            self,
+            "Task-Voice",
+            comment="Indicates that the message type is Voice",
+            state_name="Voice",
+        )
+
+        self.task_pass_image = aws_sfn.Pass(
+            self,
+            "Task-Image",
+            comment="Indicates that the message type is Image",
+            state_name="Image",
+        )
+
+        self.task_pass_video = aws_sfn.Pass(
+            self,
+            "Task-Video",
+            comment="Indicates that the message type is Video",
+            state_name="Video",
+        )
+
         self.task_process_text = aws_sfn_tasks.LambdaInvoke(
             self,
             "Task-ProcessText",
@@ -340,7 +364,7 @@ class ChatbotAPIStack(Stack):
         self.task_process_success = aws_sfn_tasks.LambdaInvoke(
             self,
             "Task-Success",
-            state_name="Success",
+            state_name="Process Success",
             lambda_function=self.lambda_state_machine_process_message,
             payload=aws_sfn.TaskInput.from_object(
                 {
@@ -357,7 +381,7 @@ class ChatbotAPIStack(Stack):
         self.task_process_failure = aws_sfn_tasks.LambdaInvoke(
             self,
             "Task-Failure",
-            state_name="Failure",
+            state_name="Process Failure",
             lambda_function=self.lambda_state_machine_process_message,
             payload=aws_sfn.TaskInput.from_object(
                 {
@@ -398,22 +422,27 @@ class ChatbotAPIStack(Stack):
         # State Machine event type initial configuration entrypoints
         self.state_machine_definition = self.task_validate_message.next(
             aws_sfn.Choice(self, "Message Type?")
-            .when(
-                self.choice_text,
-                self.task_process_text.next(
-                    self.task_send_message.next(
-                        self.task_process_success,
-                    )
-                ),
-            )
-            .when(self.choice_image, self.task_not_implemented)
-            .when(self.choice_video, self.task_not_implemented)
-            .when(self.choice_voice, self.task_not_implemented)
+            .when(self.choice_text, self.task_pass_text)
+            .when(self.choice_voice, self.task_pass_voice)
+            .when(self.choice_image, self.task_pass_image)
+            .when(self.choice_video, self.task_pass_video)
         )
 
-        # TODO: Add sucess/failure handling for the State Machine with "process_failure"
-        self.task_not_implemented.next(self.task_success)
+        # Pass States entrypoints
+        self.task_pass_text.next(
+            self.task_process_text.next(self.task_send_message),
+        )
+        self.task_pass_voice.next(self.task_not_implemented)
+        self.task_pass_image.next(self.task_not_implemented)
+        self.task_pass_video.next(self.task_not_implemented)
+
+        self.task_not_implemented.next(self.task_send_message)
+
+        self.task_send_message.next(self.task_process_success)
+
         self.task_process_success.next(self.task_success)
+
+        # TODO: Add failure handling for the State Machine with "process_failure"
         # self.task_process_failure.next(self.task_failure)
 
     def create_state_machine(self) -> None:
@@ -430,17 +459,27 @@ class ChatbotAPIStack(Stack):
         )
         Tags.of(self.state_machine_log_group).add("Name", log_group_name)
 
-        self.step_function = aws_sfn.StateMachine(
+        self.state_machine = aws_sfn.StateMachine(
             self,
             "StateMachine-ProcessMessage",
             state_machine_name=f"{self.main_resources_name}-process-message",
             state_machine_type=aws_sfn.StateMachineType.EXPRESS,
-            definition=self.state_machine_definition,
+            definition_body=aws_sfn.DefinitionBody.from_chainable(
+                self.state_machine_definition,
+            ),
             logs=aws_sfn.LogOptions(
                 destination=self.state_machine_log_group,
                 include_execution_data=True,
                 level=aws_sfn.LogLevel.ALL,
             ),
+        )
+
+        self.state_machine.grant_start_execution(self.lambda_trigger_state_machine)
+
+        # Add additional environment variables to the Lambda Functions
+        self.lambda_trigger_state_machine.add_environment(
+            "STATE_MACHINE_ARN",
+            self.state_machine.state_machine_arn,
         )
 
     def generate_cloudformation_outputs(self) -> None:

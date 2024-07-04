@@ -21,3 +21,12 @@ class DDBPrefixes(Enum):
     SK_NUMBER_DATA = "NUMBER#"
     SK_CHAT_INPUT = "CHAT#INPUT#"
     SK_CHAT_OUTPUT = "CHAT#OUTPUT#"
+
+
+if __name__ == "__main__":
+    print(WhatsAppMessageTypes.__members__)
+
+    values_list = [member.value for member in WhatsAppMessageTypes]
+    print(values_list)
+
+    print("texts" in values_list)

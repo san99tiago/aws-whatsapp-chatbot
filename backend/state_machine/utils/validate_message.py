@@ -5,10 +5,10 @@ from common.logger import custom_logger
 
 
 logger = custom_logger()
-ALLOWED_MESSAGE_TYPES = WhatsAppMessageTypes.__members__
+ALLOWED_MESSAGE_TYPES = [member.value for member in WhatsAppMessageTypes]
 
 
-class ValidateEvent(BaseStepFunction):
+class ValidateMessage(BaseStepFunction):
     """
     This class contains methods that serve as event validation for the State Machine.
     """
@@ -26,8 +26,10 @@ class ValidateEvent(BaseStepFunction):
         # TODO: Add a more complex validation here (Python schema, etc.)
 
         # Obtain message_type from the DynamoDB Stream event
+        # TODO: add abstraction and validation
         self.message_type = (
-            self.event.get("dynamodb", {})
+            self.event.get("input", {})
+            .get("dynamodb", {})
             .get("NewImage", {})
             .get("type", {})
             .get("S", "NOT_FOUND_MESSAGE_TYPE")
@@ -44,6 +46,5 @@ class ValidateEvent(BaseStepFunction):
         # Add relevant data fields for traceability in the next State Machine steps
         self.event["correlation_id"] = self.correlation_id
         self.event["message_type"] = self.message_type
-        self.event["dynamodb_event"] = self.event.get("dynamodb", {})
 
         return self.event

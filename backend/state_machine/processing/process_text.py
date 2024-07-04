@@ -28,7 +28,8 @@ class ProcessText(BaseStepFunction):
 
         # TODO: Add more robust "text processing" logic here (actual response)
         self.response_message = (
-            self.event.get("dynamodb_event", {})
+            self.event.get("input", {})
+            .get("dynamodb", {})
             .get("NewImage", {})
             .get("text", {})
             .get("S", "DEFAULT_RESPONSE")
@@ -36,7 +37,7 @@ class ProcessText(BaseStepFunction):
 
         # TODO: Update "acnowledged" message to a more complex response
         self.response_message = (
-            str(self.response_message) + "acknowledged at " + str(datetime.now())
+            str(self.response_message) + " acknowledged at " + str(datetime.now())
         )
 
         self.logger.info(f"Generated response message: {self.response_message}")

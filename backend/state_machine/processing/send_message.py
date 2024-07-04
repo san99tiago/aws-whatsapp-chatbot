@@ -18,7 +18,7 @@ class SendMessage(BaseStepFunction):
     def __init__(self, event):
         super().__init__(event, logger=logger)
 
-    def send_message(self, event):
+    def send_message(self):
         """
         Method to send the response message to the user.
         """
@@ -31,5 +31,7 @@ class SendMessage(BaseStepFunction):
             {"dummy_response": "dummy"},
             message_details="Meta API Response for WhatsApp",
         )
+
+        self.event["send_message_response_status_code"] = 200
 
         return self.event

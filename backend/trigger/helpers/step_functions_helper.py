@@ -48,9 +48,7 @@ def trigger_sm(record: DynamoDBRecord, logger: Logger = None) -> str:
         logger.debug(log_message)
 
         # Generate state machine input event with the same DynamoDBRecord dict
-        state_machine_input = {
-            "InputDynamoDBRecord": record.raw_event,
-        }
+        state_machine_input = {"input": record.raw_event}
 
         logger.debug(state_machine_input, message_details="State Machine Input")
 
