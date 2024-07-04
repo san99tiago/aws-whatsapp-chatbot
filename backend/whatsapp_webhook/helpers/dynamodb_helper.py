@@ -4,7 +4,7 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 # Own imports
-from whatsapp_webhook.common.logger import custom_logger
+from common.logger import custom_logger
 
 logger = custom_logger()
 

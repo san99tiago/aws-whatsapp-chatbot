@@ -10,12 +10,10 @@ from aws_lambda_powertools.utilities.data_classes.dynamo_db_stream_event import 
     DynamoDBRecord,
 )
 
+# Own imports
+from common.logger import custom_logger
 
-LOGGER = Logger(
-    service="wpp-poc-step-functions-helper",
-    log_uncaught_exceptions=True,
-    owner="Santiago Garcia Arango",
-)
+LOGGER = custom_logger()
 
 step_function_client = boto3.client("stepfunctions")
 

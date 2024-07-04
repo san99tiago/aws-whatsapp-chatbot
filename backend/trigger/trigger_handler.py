@@ -12,14 +12,10 @@ from aws_lambda_powertools.utilities.data_classes.dynamo_db_stream_event import 
 )
 
 # Own imports
-from trigger_message_processing.helpers.step_functions_helper import trigger_sm  # noqa
+from common.logger import custom_logger
+from trigger.helpers.step_functions_helper import trigger_sm  # noqa
 
-
-logger = Logger(
-    service="wpp-poc-trigger-message-processing",
-    log_uncaught_exceptions=True,
-    owner="Santiago Garcia Arango",
-)
+logger = custom_logger()
 
 
 def send_message_to_step_function(record: DynamoDBRecord) -> None:

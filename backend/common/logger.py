@@ -11,7 +11,7 @@ def custom_logger(
 ) -> Logger:
     """Returns a custom <aws_lambda_powertools.Logger> Object."""
     return Logger(
-        service="wpp-poc",
+        service="wpp-chatbot",
         log_uncaught_exceptions=True,
         owner="Santiago Garcia Arango",
         correlation_id=correlation_id,
