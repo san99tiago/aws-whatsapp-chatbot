@@ -22,6 +22,7 @@ aws-lambda-powertools = { version = "^2.31.0" }
 fastapi = { extras = ["all"], version = "^0.109.0" }
 mangum = "^0.17.0"
 pydantic = "^2.5.3"
+moto = "^5.0.11"
 
 
 [tool.pytest.ini_options]
