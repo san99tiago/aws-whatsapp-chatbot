@@ -5,6 +5,7 @@ description = "WhatsApp chatbot deployed on AWS for POC purposes"
 authors = ["Santiago Garcia Arango <san99tiago@gmail.com>"]
 license = "Apache"
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"

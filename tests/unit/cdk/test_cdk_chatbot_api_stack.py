@@ -1,10 +1,12 @@
+# Built-in imports
+import os
+
 # External imports
 import aws_cdk as core
 import aws_cdk.assertions as assertions
 
 # Own imports
 from cdk.stacks.cdk_chatbot_api_stack import ChatbotAPIStack
-
 
 app: core.App = core.App()
 stack: ChatbotAPIStack = ChatbotAPIStack(
@@ -16,6 +18,7 @@ stack: ChatbotAPIStack = ChatbotAPIStack(
         "log_level": "DEBUG",
         "table_name": "aws-whatsapp-poc-test",
         "api_gw_name": "wpp-test",
+        "secret_name": "test-secret",
     },
 )
 template: assertions.Template = assertions.Template.from_stack(stack)
@@ -36,7 +39,7 @@ def test_lambda_function_created():
     match = template.find_resources(
         type="AWS::Lambda::Function",
     )
-    assert len(match) == 2
+    assert len(match) == 3
 
 
 def test_api_gateway_created():

@@ -1,4 +1,4 @@
-from common.message_base_model import MessageBaseModel
+from common.models.message_base_model import MessageBaseModel
 
 
 class TextMessageModel(MessageBaseModel):

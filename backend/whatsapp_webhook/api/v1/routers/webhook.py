@@ -8,12 +8,14 @@ from uuid import uuid4
 from fastapi import APIRouter, Header, Query, Request, Response, status
 
 # Own imports
-from common.text_message_model import TextMessageModel
+from common.models.text_message_model import TextMessageModel
 from common.logger import custom_logger
-from whatsapp_webhook.helpers.dynamodb_helper import DynamoDBHelper
+from common.helpers.dynamodb_helper import DynamoDBHelper
+from common.helpers.secrets_helper import SecretsHelper
 
-# Initialize the META_API_CALLBACK_TOKEN (pending from Secrets Manager)
-META_API_CALLBACK_TOKEN = "PENDING_ADD_TOKEN_FROM_SECRETS_MANAGER"  # TODO (pending)
+# Initialize Secrets Manager Helper
+SECRET_NAME = os.environ["SECRET_NAME"]
+secrets_helper = SecretsHelper(SECRET_NAME)
 
 # Initialize DynamoDB Helper
 DYNAMODB_TABLE = os.environ["DYNAMODB_TABLE"]
@@ -41,7 +43,8 @@ async def get_chatbot_webhook(
         logger.debug(f"hub_verify_token_query_param: {hub_verify_token_query_param}")
 
         # TODO: MIGRATE TOKEN VALIDATION TO DEDICATED AUTHORIZER!!!
-        if hub_verify_token_query_param == META_API_CALLBACK_TOKEN:
+        AWS_API_KEY_TOKEN = secrets_helper.get_secret_value("AWS_API_KEY_TOKEN")
+        if hub_verify_token_query_param == AWS_API_KEY_TOKEN:
             return Response(
                 content=hub_challenge_query_param,
                 status_code=status.HTTP_200_OK,

@@ -12,7 +12,8 @@
         "deployment_environment": "dev",
         "log_level": "DEBUG",
         "table_name": "aws-whatsapp-poc-dev",
-        "api_gw_name": "wpp-poc"
+        "api_gw_name": "wpp-poc",
+        "secret_name": "/dev/aws-whatsapp-chatbot"
       }
     }
   }

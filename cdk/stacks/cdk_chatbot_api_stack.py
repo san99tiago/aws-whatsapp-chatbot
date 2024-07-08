@@ -8,6 +8,7 @@ from aws_cdk import (
     aws_lambda,
     aws_lambda_event_sources,
     aws_logs,
+    aws_secretsmanager,
     aws_stepfunctions as aws_sfn,
     aws_stepfunctions_tasks as aws_sfn_tasks,
     aws_apigateway as aws_apigw,
@@ -48,7 +49,7 @@ class ChatbotAPIStack(Stack):
         self.deployment_environment = self.app_config["deployment_environment"]
 
         # Main methods for the deployment
-        # TODO: Add "import_secret" method to import from secrets manager the tokens
+        self.import_secrets()
         self.create_dynamodb_table()
         self.create_lambda_layers()
         self.create_lambda_functions()
@@ -61,6 +62,16 @@ class ChatbotAPIStack(Stack):
 
         # Generate CloudFormation outputs
         self.generate_cloudformation_outputs()
+
+    def import_secrets(self) -> None:
+        """
+        Method to import the AWS Secrets for the Lambda Functions.
+        """
+        self.secret_chatbot = aws_secretsmanager.Secret.from_secret_name_v2(
+            self,
+            "Secret-Chatbot",
+            secret_name=self.app_config["secret_name"],
+        )
 
     def create_dynamodb_table(self):
         """
@@ -133,6 +144,7 @@ class ChatbotAPIStack(Stack):
                 "ENVIRONMENT": self.app_config["deployment_environment"],
                 "LOG_LEVEL": self.app_config["log_level"],
                 "DYNAMODB_TABLE": self.dynamodb_table.table_name,
+                "SECRET_NAME": self.app_config["secret_name"],
             },
             layers=[
                 self.lambda_layer_powertools,
@@ -140,6 +152,7 @@ class ChatbotAPIStack(Stack):
             ],
         )
         self.dynamodb_table.grant_read_write_data(self.lambda_whatsapp_webhook)
+        self.secret_chatbot.grant_read(self.lambda_whatsapp_webhook)
 
         # Lambda Function for receiving the messages from DynamoDB Streams
         # ... and triggering the State Machine for processing the messages
@@ -176,13 +189,14 @@ class ChatbotAPIStack(Stack):
             environment={
                 "ENVIRONMENT": self.app_config["deployment_environment"],
                 "LOG_LEVEL": self.app_config["log_level"],
-                "STATE_MACHINE_ARN": "TBD",
+                "SECRET_NAME": self.app_config["secret_name"],
             },
             layers=[
                 self.lambda_layer_powertools,
                 self.lambda_layer_common,
             ],
         )
+        self.secret_chatbot.grant_read(self.lambda_state_machine_process_message)
 
     def create_dynamodb_streams(self) -> None:
         """

@@ -1,6 +1,6 @@
 import pytest
 from uuid import uuid4
-from backend.whatsapp_webhook.models.message_base_model import (
+from backend.common.models.message_base_model import (
     MessageBaseModel,
 )
 
