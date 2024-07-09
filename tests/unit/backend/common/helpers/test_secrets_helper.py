@@ -56,12 +56,20 @@ def test_secret_helper_non_existent_secret(secrets_helper_not_existent):
         secrets_helper_not_existent.get_secret_value("dummy")
 
 
-def test_get_secret_value_success(secrets_helper):
+def test_get_secret_value_with_key_success(secrets_helper):
     assert secrets_helper.get_secret_value("username") == "test-user"
     assert secrets_helper.get_secret_value("password") == "test-password"
     assert secrets_helper.get_secret_value("token") == "test-token"
 
 
-def test_get_secret_value_invalid_key(secrets_helper):
+def test_get_secret_value_without_key(secrets_helper):
+    assert secrets_helper.get_secret_value() == {
+        "username": "test-user",
+        "password": "test-password",
+        "token": "test-token",
+    }
+
+
+def test_get_secret_value_with_key_invalid(secrets_helper):
     with pytest.raises(KeyError):
         secrets_helper.get_secret_value("test-invalid-key")

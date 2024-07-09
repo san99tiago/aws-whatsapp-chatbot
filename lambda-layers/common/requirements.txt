@@ -2,3 +2,4 @@ fastapi==0.109.0
 mangum==0.17.0
 pydantic>=2.5.3
 pydantic_core>=2.14.6
+requests==2.32.3

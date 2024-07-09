@@ -190,6 +190,7 @@ class ChatbotAPIStack(Stack):
                 "ENVIRONMENT": self.app_config["deployment_environment"],
                 "LOG_LEVEL": self.app_config["log_level"],
                 "SECRET_NAME": self.app_config["secret_name"],
+                "META_ENDPOINT": self.app_config["meta_endpoint"],
             },
             layers=[
                 self.lambda_layer_powertools,

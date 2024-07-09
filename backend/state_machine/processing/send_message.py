@@ -3,7 +3,7 @@ from datetime import datetime
 
 # Own imports
 from state_machine.base_step_function import BaseStepFunction
-from common.enums import WhatsAppMessageTypes
+from state_machine.integrations.meta.api_requests import MetaAPI
 from common.logger import custom_logger
 
 
@@ -25,13 +25,42 @@ class SendMessage(BaseStepFunction):
 
         self.logger.info("Starting send_message for the chatbot")
 
-        # TODO: Add more robust "send message" logic here (actual response)
-
-        self.logger.debug(
-            {"dummy_response": "dummy"},
-            message_details="Meta API Response for WhatsApp",
+        # Load response details from the event
+        text_message = self.event.get("response_message", "DEFAULT_RESPONSE_MESSAGE")
+        phone_number = (
+            self.event.get("input", {})
+            .get("dynamodb", {})
+            .get("NewImage", {})
+            .get("from_number", {})
+            .get("S")
+        )
+        original_message_id = (
+            self.event.get("input", {})
+            .get("dynamodb", {})
+            .get("NewImage", {})
+            .get("whatsapp_id", {})
+            .get("S")
         )
 
-        self.event["send_message_response_status_code"] = 200
+        # Initialize the Meta API
+        meta_api = MetaAPI(logger=self.logger)
+        response = meta_api.post_message(
+            text_message=text_message,
+            to_phone_number=phone_number,
+            original_message_id=original_message_id,
+        )
 
+        self.logger.debug(
+            response,
+            message_details="POST WhatsApp Message Meta API Response",
+        )
+
+        if "error" in response:
+            self.logger.error(
+                response,
+                message_details="Error in POST WhatsApp Message Meta API Response",
+            )
+            raise Exception("Error in POST WhatsApp Message Meta API Response")
+
+        self.event["send_message_response_status_code"] = 200
         return self.event
