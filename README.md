@@ -2,7 +2,7 @@
 
 ![Latest CI/CD Action workflow](https://github.com/san99tiago/aws-whatsapp-chatbot/actions/workflows/deploy.yml/badge.svg?branch=main)
 
-WhatsApp Chatbot on AWS that enables the creation of a customized multi-modal "personal assistant" for general purposes (customized with my own data and requirements).
+WhatsApp Chatbot on AWS that enables the creation of a customized multi-modal "personal assistant" for general purposes (customized with my own data and requirements)!
 
 ## Architecture :memo:
 
