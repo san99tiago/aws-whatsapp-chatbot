@@ -130,10 +130,14 @@ jobs:
           fi
 
       - name: CDK Synth
-        run: cdk synth
+        run: |
+          source .venv/bin/activate
+          cdk synth
 
       - name: CDK Diff
-        run: cdk diff
+        run: |
+          source .venv/bin/activate
+          cdk diff
 
       - name: Archive CDK Synth results (no assets)
         uses: actions/upload-artifact@v3
@@ -234,4 +238,6 @@ jobs:
           fi
 
       - name: CDK Deploy
-        run: cdk deploy --require-approval never
+        run: |
+          source .venv/bin/activate
+          cdk deploy --require-approval never
