@@ -252,6 +252,9 @@ class ChatbotAPIStack(Stack):
             proxy=False,  # Proxy disabled to have more control
         )
 
+        # Method to remove the "CloudFormation Output" to avoid exposing the endpoint
+        self.api.node.try_remove_child("Endpoint")
+
     def configure_rest_api(self):
         """
         Method to configure the REST-API Gateway with resources and methods.
