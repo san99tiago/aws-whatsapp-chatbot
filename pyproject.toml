@@ -38,10 +38,11 @@ build-backend = "poetry.core.masonry.api"
 [tool.poe.tasks]
 black-format = "black ."
 black-check = "black . --check --diff -v"
-test-unit = ["_test_unit", "_coverage_html"]
+test-unit = ["_test_unit", "_coverage_report", "_coverage_html"]
 synth = "cdk synth"
 deploy-backend-dev = "cdk deploy investments-portfolio-tracker-backend-dev --require-approval never"
 _test_unit = "coverage run -m pytest tests/unit"
+_coverage_report = "coverage report"
 _coverage_html = "coverage html"
 
 [tool.coverage.run]
