@@ -19,6 +19,7 @@ stack: ChatbotAPIStack = ChatbotAPIStack(
         "table_name": "aws-whatsapp-poc-test",
         "api_gw_name": "wpp-test",
         "secret_name": "test-secret",
+        "meta_endpoint": "https://fake-endpoint.com",
     },
 )
 template: assertions.Template = assertions.Template.from_stack(stack)
