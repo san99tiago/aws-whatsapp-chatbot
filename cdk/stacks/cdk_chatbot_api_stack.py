@@ -509,16 +509,17 @@ class ChatbotAPIStack(Stack):
             description="Deployment environment",
         )
 
-        CfnOutput(
-            self,
-            "APIDocs",
-            value=f"https://{self.api.rest_api_id}.execute-api.{self.region}.amazonaws.com/{self.deployment_environment}/api/v1/docs",
-            description="API endpoint Docs",
-        )
+        if self.deployment_environment != "prod":
+            CfnOutput(
+                self,
+                "APIDocs",
+                value=f"https://{self.api.rest_api_id}.execute-api.{self.region}.amazonaws.com/{self.deployment_environment}/api/v1/docs",
+                description="API endpoint Docs",
+            )
 
-        CfnOutput(
-            self,
-            "APIChatbot",
-            value=f"https://{self.api.rest_api_id}.execute-api.{self.region}.amazonaws.com/{self.deployment_environment}/api/v1/webhook",
-            description="API endpoint Chatbot",
-        )
+            CfnOutput(
+                self,
+                "APIChatbot",
+                value=f"https://{self.api.rest_api_id}.execute-api.{self.region}.amazonaws.com/{self.deployment_environment}/api/v1/webhook",
+                description="API endpoint Chatbot",
+            )
