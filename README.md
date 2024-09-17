@@ -22,6 +22,11 @@ These steps show the creation of a Secret on AWS that will contain the required 
 
 - [AWS_CONFIGURATION README](./docs/AWS_CONFIGURATION.md)
 
+## Shoutouts 🙌
+
+Thanks for all the inspiration and guidance on the Generative AI journey, @elizabethfuentes12 !
+
+
 ## Author 🎹
 
 ### Santiago Garcia Arango
