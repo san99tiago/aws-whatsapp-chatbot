@@ -4,15 +4,16 @@
     "main_resources_name": "aws-wpp",
     "tags": {
       "Owner": "Santiago Garcia Arango",
-      "Source": "https://github.com/san99tiago/aws-whatsapp-poc",
+      "Source": "https://github.com/san99tiago/aws-whatsapp-chatbot",
       "Usage": "WhatsApp chatbot deployed on AWS for POC purposes"
     },
     "app_config": {
       "dev": {
         "deployment_environment": "dev",
         "log_level": "DEBUG",
-        "table_name": "aws-whatsapp-poc-dev",
-        "api_gw_name": "wpp-poc",
+        "table_name": "aws-whatsapp-dev",
+        "calendar_events_table_name": "aws-whatsapp-calendar-dev",
+        "api_gw_name": "wpp-dev",
         "secret_name": "/dev/aws-whatsapp-chatbot",
         "meta_endpoint": "https://graph.facebook.com/"
       },
@@ -20,7 +21,8 @@
         "deployment_environment": "prod",
         "log_level": "DEBUG",
         "table_name": "aws-whatsapp-prod",
-        "api_gw_name": "wpp-webhook",
+        "calendar_events_table_name": "aws-whatsapp-calendar-prod",
+        "api_gw_name": "wpp-prod",
         "secret_name": "/prod/aws-whatsapp-chatbot",
         "meta_endpoint": "https://graph.facebook.com/"
       }
