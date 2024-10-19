@@ -4,10 +4,13 @@ import os
 # External imports
 from aws_cdk import (
     Duration,
+    aws_bedrock,
     aws_dynamodb,
+    aws_iam,
     aws_lambda,
     aws_lambda_event_sources,
     aws_logs,
+    aws_ssm,
     aws_secretsmanager,
     aws_stepfunctions as aws_sfn,
     aws_stepfunctions_tasks as aws_sfn_tasks,
@@ -59,6 +62,7 @@ class ChatbotAPIStack(Stack):
         self.create_state_machine_tasks()
         self.create_state_machine_definition()
         self.create_state_machine()
+        self.create_bedrock_components()
 
         # Generate CloudFormation outputs
         self.generate_cloudformation_outputs()
@@ -79,7 +83,7 @@ class ChatbotAPIStack(Stack):
         """
         self.dynamodb_table = aws_dynamodb.Table(
             self,
-            "DynamoDB-Table",
+            "DynamoDB-Table-Chatbot",
             table_name=self.app_config["table_name"],
             partition_key=aws_dynamodb.Attribute(
                 name="PK", type=aws_dynamodb.AttributeType.STRING
@@ -198,6 +202,43 @@ class ChatbotAPIStack(Stack):
             ],
         )
         self.secret_chatbot.grant_read(self.lambda_state_machine_process_message)
+
+        # Lambda Function for the Bedrock Agent Group (fetch recipes)
+        bedrock_agent_lambda_role = aws_iam.Role(
+            self,
+            "BedrockAgentLambdaRole",
+            assumed_by=aws_iam.ServicePrincipal("lambda.amazonaws.com"),
+            description="Role for Bedrock Agent Lambda",
+            managed_policies=[
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "service-role/AWSLambdaBasicExecutionRole",
+                ),
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonBedrockFullAccess",
+                ),
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonDynamoDBFullAccess",
+                ),
+            ],
+        )
+
+        # Lambda for the Action Group (used for Bedrock Agents)
+        self.lambda_fetch_calendar_events = aws_lambda.Function(
+            self,
+            "Lambda-AG-FetchCalendarEvents",
+            runtime=aws_lambda.Runtime.PYTHON_3_11,
+            handler="bedrock_agent/lambda_function.lambda_handler",
+            function_name=f"{self.main_resources_name}-bedrock-action-group-calendar-events",
+            code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
+            timeout=Duration.seconds(60),
+            memory_size=512,
+            environment={
+                "ENVIRONMENT": self.app_config["deployment_environment"],
+                "LOG_LEVEL": self.app_config["log_level"],
+                "TABLE_NAME": self.app_config["calendar_events_table_name"],
+            },
+            role=bedrock_agent_lambda_role,
+        )
 
     def create_dynamodb_streams(self) -> None:
         """
@@ -498,6 +539,131 @@ class ChatbotAPIStack(Stack):
         self.lambda_trigger_state_machine.add_environment(
             "STATE_MACHINE_ARN",
             self.state_machine.state_machine_arn,
+        )
+
+    def create_bedrock_components(self) -> None:
+        """
+        Method to create the Bedrock Agent for the chatbot.
+        """
+
+        # Generic "PK" and "SK", to leverage Single-Table-Design
+        self.calendar_events_dynamodb_table = aws_dynamodb.Table(
+            self,
+            "DynamoDB-Table-CalendarEvents",
+            table_name=self.app_config["calendar_events_table_name"],
+            partition_key=aws_dynamodb.Attribute(
+                name="PK", type=aws_dynamodb.AttributeType.STRING
+            ),
+            sort_key=aws_dynamodb.Attribute(
+                name="SK", type=aws_dynamodb.AttributeType.STRING
+            ),
+            billing_mode=aws_dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+        Tags.of(self.calendar_events_dynamodb_table).add(
+            "Name", self.app_config["table_name"]
+        )
+
+        # Add permissions to the Lambda function resource policy. You use a resource-based policy to allow an AWS service to invoke your function.
+        self.lambda_fetch_calendar_events.add_permission(
+            "AllowBedrock",
+            principal=aws_iam.ServicePrincipal("bedrock.amazonaws.com"),
+            action="lambda:InvokeFunction",
+            source_arn=f"arn:aws:bedrock:{self.region}:{self.account}:agent/*",
+        )
+
+        bedrock_agent_role = aws_iam.Role(
+            self,
+            "BedrockAgentRole",
+            assumed_by=aws_iam.ServicePrincipal("bedrock.amazonaws.com"),
+            description="Role for Bedrock Agent",
+            managed_policies=[
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonBedrockFullAccess",
+                ),
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AWSLambda_FullAccess",
+                ),
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "CloudWatchLogsFullAccess",
+                ),
+            ],
+        )
+        # Add additional IAM actions for the bedrock agent
+        bedrock_agent_role.add_to_policy(
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                actions=[
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeModelEndpoint",
+                    "bedrock:InvokeModelEndpointAsync",
+                ],
+                resources=["*"],
+            )
+        )
+
+        self.bedrock_agent = aws_bedrock.CfnAgent(
+            self,
+            "BedrockAgent",
+            agent_name=f"{self.main_resources_name}-agent",
+            agent_resource_role_arn=bedrock_agent_role.role_arn,
+            description="Agent for chatbot",
+            foundation_model="anthropic.claude-3-haiku-20240307-v1:0",
+            instruction="You are a specialized agent in giving back calendar events based on the user's input <date>. User must provide the date, and you will make sure it has the format 'YYYY-MM-DD' for the parameter <date>. You will use it to get the list of events for that day and return them in a structured format.",
+            auto_prepare=True,
+            action_groups=[
+                aws_bedrock.CfnAgent.AgentActionGroupProperty(
+                    action_group_name="FetchCalendarEvents",
+                    description="A function that is able to fetch the calendar events from the database from an input date.",
+                    action_group_executor=aws_bedrock.CfnAgent.ActionGroupExecutorProperty(
+                        lambda_=self.lambda_fetch_calendar_events.function_arn,
+                    ),
+                    function_schema=aws_bedrock.CfnAgent.FunctionSchemaProperty(
+                        functions=[
+                            aws_bedrock.CfnAgent.FunctionProperty(
+                                name="FetchCalendarEvents",
+                                # the properties below are optional
+                                description="Function to fetch the calendar events based on the input input date",
+                                parameters={
+                                    "date": aws_bedrock.CfnAgent.ParameterDetailProperty(
+                                        type="string",
+                                        description="Date to fetch the calendar events",
+                                        required=True,
+                                    ),
+                                },
+                            )
+                        ]
+                    ),
+                ),
+            ],
+        )
+
+        # Create an alias for the bedrock agent
+        cfn_agent_alias = aws_bedrock.CfnAgentAlias(
+            self,
+            "MyCfnAgentAlias",
+            agent_alias_name="bedrock-agent-alias",
+            agent_id=self.bedrock_agent.ref,
+            description="bedrock agent alias to simplify agent invocation",
+        )
+        cfn_agent_alias.add_dependency(self.bedrock_agent)
+
+        # This string will be as <AGENT_ID>|<AGENT_ALIAS_ID>
+        agent_alias_string = cfn_agent_alias.ref
+
+        # Create SSM Parameters for the agent alias to use in the Lambda functions
+        # Note: can not be added as Env-Vars due to circular dependency. Thus, SSM Params (decouple)
+        aws_ssm.StringParameter(
+            self,
+            "SSMAgentAlias",
+            parameter_name=f"/{self.deployment_environment}/aws-wpp/bedrock-agent-alias-id-full-string",
+            string_value=agent_alias_string,
+        )
+        aws_ssm.StringParameter(
+            self,
+            "SSMAgentId",
+            parameter_name=f"/{self.deployment_environment}/aws-wpp/bedrock-agent-id",
+            string_value=self.bedrock_agent.ref,
         )
 
     def generate_cloudformation_outputs(self) -> None:
