@@ -202,6 +202,19 @@ class ChatbotAPIStack(Stack):
             ],
         )
         self.secret_chatbot.grant_read(self.lambda_state_machine_process_message)
+        self.dynamodb_table.grant_read_write_data(
+            self.lambda_state_machine_process_message
+        )
+        self.lambda_state_machine_process_message.role.add_managed_policy(
+            aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                "AmazonSSMReadOnlyAccess",
+            ),
+        )
+        self.lambda_state_machine_process_message.role.add_managed_policy(
+            aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                "AmazonBedrockFullAccess",
+            ),
+        )
 
         # Lambda Function for the Bedrock Agent Group (fetch recipes)
         bedrock_agent_lambda_role = aws_iam.Role(

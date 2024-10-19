@@ -5,13 +5,13 @@
     "tags": {
       "Owner": "Santiago Garcia Arango",
       "Source": "https://github.com/san99tiago/aws-whatsapp-chatbot",
-      "Usage": "WhatsApp chatbot deployed on AWS for POC purposes"
+      "Usage": "WhatsApp chatbot deployed on AWS for showcasing multiple Generative AI solutions with Bedrock"
     },
     "app_config": {
       "dev": {
         "deployment_environment": "dev",
         "log_level": "DEBUG",
-        "table_name": "aws-whatsapp-dev",
+        "table_name": "aws-wpp-dev",
         "calendar_events_table_name": "aws-whatsapp-calendar-dev",
         "api_gw_name": "wpp-dev",
         "secret_name": "/dev/aws-whatsapp-chatbot",
@@ -20,7 +20,7 @@
       "prod": {
         "deployment_environment": "prod",
         "log_level": "DEBUG",
-        "table_name": "aws-whatsapp-prod",
+        "table_name": "aws-wpp-prod",
         "calendar_events_table_name": "aws-whatsapp-calendar-prod",
         "api_gw_name": "wpp-prod",
         "secret_name": "/prod/aws-whatsapp-chatbot",

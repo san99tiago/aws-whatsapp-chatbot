@@ -6,6 +6,8 @@ from state_machine.base_step_function import BaseStepFunction
 from common.enums import WhatsAppMessageTypes
 from common.logger import custom_logger
 
+from state_machine.processing.bedrock_agent import call_bedrock_agent
+
 
 logger = custom_logger()
 ALLOWED_MESSAGE_TYPES = WhatsAppMessageTypes.__members__
@@ -27,7 +29,7 @@ class ProcessText(BaseStepFunction):
         self.logger.info("Starting process_text for the chatbot")
 
         # TODO: Add more robust "text processing" logic here (actual response)
-        self.response_message = (
+        self.text = (
             self.event.get("input", {})
             .get("dynamodb", {})
             .get("NewImage", {})
@@ -36,9 +38,8 @@ class ProcessText(BaseStepFunction):
         )
 
         # TODO: Update "acnowledged" message to a more complex response
-        self.response_message = (
-            str(self.response_message) + " acknowledged at " + str(datetime.now())
-        )
+        # TODO: Add more complex "text processing" logic here with memory and sessions...
+        self.response_message = call_bedrock_agent(self.text)
 
         self.logger.info(f"Generated response message: {self.response_message}")
         self.logger.info("Validation finished successfully")

@@ -38,7 +38,7 @@ def lambda_handler(event, context):
     action_response = {
         "actionGroup": action_group,
         "function": _function,
-        "functionResponse": {"responseBody": str(response_body)},
+        "functionResponse": {"responseBody": response_body},
     }
 
     function_response = {
