@@ -16,7 +16,8 @@ stack: ChatbotAPIStack = ChatbotAPIStack(
     app_config={
         "deployment_environment": "test",
         "log_level": "DEBUG",
-        "table_name": "aws-whatsapp-poc-test",
+        "table_name": "aws-whatsapp-poc-test1",
+        "calendar_events_table_name": "aws-whatsapp-poc-test2",
         "api_gw_name": "wpp-test",
         "secret_name": "test-secret",
         "meta_endpoint": "https://fake-endpoint.com",
@@ -33,14 +34,14 @@ def test_dynamodb_table_created():
     match = template.find_resources(
         type="AWS::DynamoDB::Table",
     )
-    assert len(match) == 1
+    assert len(match) == 2
 
 
 def test_lambda_function_created():
     match = template.find_resources(
         type="AWS::Lambda::Function",
     )
-    assert len(match) == 3
+    assert len(match) == 4
 
 
 def test_api_gateway_created():
