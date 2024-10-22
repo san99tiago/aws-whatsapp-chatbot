@@ -810,7 +810,7 @@ class ChatbotAPIStack(Stack):
             knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.KnowledgeBaseConfigurationProperty(
                 type="VECTOR",
                 vector_knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.VectorKnowledgeBaseConfigurationProperty(
-                    embedding_model_arn=f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v2"
+                    embedding_model_arn=f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v1"
                 ),
             ),
             storage_configuration=aws_bedrock.CfnKnowledgeBase.StorageConfigurationProperty(
@@ -819,9 +819,9 @@ class ChatbotAPIStack(Stack):
                     collection_arn=opensearch_serverless_collection.attr_arn,
                     vector_index_name=index_name,
                     field_mapping=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessFieldMappingProperty(
-                        metadata_field="metadataField",
-                        text_field="textField",
-                        vector_field="vectorField",
+                        metadata_field="AMAZON_BEDROCK_METADATA",  # Must match to Lambda Function
+                        text_field="AMAZON_BEDROCK_TEXT_CHUNK",  # Must match to Lambda Function
+                        vector_field="bedrock-knowledge-base-default-vector",  # Must match to Lambda Function
                     ),
                 ),
             ),

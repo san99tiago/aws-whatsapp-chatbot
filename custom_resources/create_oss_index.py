@@ -26,22 +26,21 @@ def handler(event, context):
         "settings": {"index": {"knn": "true"}},
         "mappings": {
             "properties": {
-                "vectorField": {
+                "bedrock-knowledge-base-default-vector": {
                     "type": "knn_vector",
                     "dimension": 1536,
                     "method": {
+                        "space_type": "innerproduct",
+                        "engine": "FAISS",
                         "name": "hnsw",
-                        "engine": "faiss",
-                        "space_type": "l2",
                         "parameters": {
-                            "ef_construction": 1536,
                             "m": 16,
-                            "ef_search": 1536,
+                            "ef_construction": 512,
                         },
                     },
                 },
-                "metadataField": {"type": "text"},
-                "textField": {"type": "text"},
+                "AMAZON_BEDROCK_METADATA": {"type": "text", "index": False},
+                "AMAZON_BEDROCK_TEXT_CHUNK": {"type": "text"},
             }
         },
     }
