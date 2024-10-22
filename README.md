@@ -24,7 +24,10 @@ These steps show the creation of a Secret on AWS that will contain the required 
 
 ## Shoutouts 🙌
 
-Thanks for all the inspiration and guidance on the Generative AI journey, [elizabethfuentes12](https://github.com/elizabethfuentes12) !
+Thanks for all the inspiration and guidance on the Generative AI journey:
+
+- [elizabethfuentes12](https://github.com/elizabethfuentes12) !
+- [micheldirk](https://medium.com/@micheldirk)
 
 ## Author 🎹
 
