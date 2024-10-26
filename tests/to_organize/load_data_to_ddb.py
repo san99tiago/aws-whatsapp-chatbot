@@ -1,6 +1,8 @@
 # DEMO SCRIPT TO LOAD SAMPLE DATA TO DYNAMODB
 import boto3
 
+# TODO: Replace the items with your own data... Parametrize this script... Improve it...
+
 items = [
     {
         "PK": "USER#san99tiago@gmail.com",

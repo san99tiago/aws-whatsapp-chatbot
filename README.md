@@ -2,11 +2,21 @@
 
 ![Latest CI/CD Action workflow](https://github.com/san99tiago/aws-whatsapp-chatbot/actions/workflows/deploy.yml/badge.svg?branch=main)
 
-WhatsApp Chatbot on AWS that enables the creation of a customized multi-modal "personal assistant" for general purposes (customized with my own data and requirements)!
+My Serverless WhatsApp chatbot on AWS, serving as a personal assistant with access to my private data.
 
 ## Architecture :memo:
 
 <img src="assets/aws-whatsapp-chatbot.png" width=90%> <br>
+
+How is the Generative-AI approach implemented on top of AWS?
+
+- RAG on top of Bedrock Knowledge Bases leveraging an OpenSearch Serverless Vector DB from PDF files.
+- Bedrock Agents to enable APIs and Database requests to fetch live data as part of the chain-of-thought process.
+- State Machine for different workflow's processing based on the user's input (text, voice-message, etc).
+
+## Results (WhatsApp Assistant Demo) 🔮
+
+<img src="assets/WhatsApp_Chatbot_Results_01.PNG" width=40%> <br>
 
 ## Manual Steps (Only Once) :raised_hand:
 
@@ -26,8 +36,8 @@ These steps show the creation of a Secret on AWS that will contain the required 
 
 Thanks for all the inspiration and guidance on the Generative AI journey:
 
-- [elizabethfuentes12](https://github.com/elizabethfuentes12) !
-- [micheldirk](https://medium.com/@micheldirk)
+- [elizabethfuentes12](https://github.com/elizabethfuentes12) -> Gracias, Eli por inspirarme a ser un Developer Advocate!
+- [micheldirk](https://medium.com/@micheldirk) -> Thanks Michel for the inspiration for the low-level CDK constructs!
 
 ## Author 🎹
 
@@ -36,7 +46,7 @@ Thanks for all the inspiration and guidance on the Generative AI journey:
 <table border="1">
     <tr>
         <td>
-            <p align="center">Curious DevOps Engineer passionate about advanced cloud-based solutions and deployments in AWS. I am convinced that today's greatest challenges must be solved by people that love what they do.</p>
+            <p align="center">Curious Solutions Architect experienced in DevOps and passionate about advanced cloud-based solutions and deployments in AWS. I am convinced that today's greatest challenges must be solved by people that love what they do.</p>
         </td>
         <td>
             <p align="center"><img src="assets/SantiagoGarciaArango_AWS.png" width=80%></p>

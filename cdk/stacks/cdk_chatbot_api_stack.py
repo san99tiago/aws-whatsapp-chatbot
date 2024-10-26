@@ -810,7 +810,7 @@ class ChatbotAPIStack(Stack):
             self,
             "BedrockKB",
             name="kbdocs",
-            description="Bedrock knowledge base that contains a relevant documents for the chatbot",
+            description="Bedrock knowledge base that contains a relevant projects for the user.",
             role_arn=bedrock_kb_role.role_arn,
             knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.KnowledgeBaseConfigurationProperty(
                 type="VECTOR",
@@ -841,7 +841,7 @@ class ChatbotAPIStack(Stack):
             "Bedrock-DataSource",
             name="KbDataSource",
             knowledge_base_id=bedrock_knowledge_base.ref,
-            description="The S3 data source definition for the bedrock knowledge base",
+            description="The S3 data source definition for the bedrock knowledge base containing information about projects.",
             data_source_configuration=aws_bedrock.CfnDataSource.DataSourceConfigurationProperty(
                 s3_configuration=aws_bedrock.CfnDataSource.S3DataSourceConfigurationProperty(
                     bucket_arn=s3_bucket_kb.bucket_arn,
@@ -867,12 +867,14 @@ class ChatbotAPIStack(Stack):
         # Create the Bedrock Agent with KB and Agent Groups
         self.bedrock_agent = aws_bedrock.CfnAgent(
             self,
-            "BedrockAgent",
-            agent_name=f"{self.main_resources_name}-agent",
+            "BedrockAgentV2",
+            agent_name=f"{self.main_resources_name}-agent-v2",
             agent_resource_role_arn=bedrock_agent_role.role_arn,
             description="Agent for chatbot",
-            foundation_model="anthropic.claude-3-haiku-20240307-v1:0",
-            instruction="You are a specialized agent in giving back calendar events based on the user's input <date>. User must provide the date, and you will make sure it has the format 'YYYY-MM-DD' for the parameter <date>. You will use it to get the list of events for that day and return them in a structured format.",
+            # foundation_model="anthropic.claude-3-haiku-20240307-v1:0",
+            # foundation_model="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            foundation_model="anthropic.claude-3-sonnet-20240229-v1:0",
+            instruction="You are a specialized agent in giving back information about projects or calendar events. If information is asked about projects, do not ask for the date. In case that user asks for events, they will provide the <date>. User must provide the date, and you will make sure it has the format 'YYYY-MM-DD' for the parameter <date>. You will use it to get the list of events for that day and return them in a structured format. Always answer in the same language as the user asked. If the user asks for a project, you will return the project information. If the user asks for events, you will return the events for that day.",
             auto_prepare=True,
             action_groups=[
                 aws_bedrock.CfnAgent.AgentActionGroupProperty(
@@ -901,7 +903,7 @@ class ChatbotAPIStack(Stack):
             ],
             knowledge_bases=[
                 aws_bedrock.CfnAgent.AgentKnowledgeBaseProperty(
-                    description="The knowledge base for the agent that contains the relevant documents for the chatbot",
+                    description="The knowledge base for the agent that contains the relevant projects of the user.",
                     knowledge_base_id=bedrock_knowledge_base.ref,
                 )
             ],
