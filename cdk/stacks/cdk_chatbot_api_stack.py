@@ -709,6 +709,10 @@ class ChatbotAPIStack(Stack):
                 aws_iam.ManagedPolicy.from_aws_managed_policy_name(
                     "CloudWatchLogsFullAccess"
                 ),
+                # TROUBLESHOOTING: Add additional permissions for the KB
+                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AdministratorAccess"
+                ),  # TODO: DELETE THIS LINE IN PRODUCTION
             ],
         )
 
@@ -801,61 +805,65 @@ class ChatbotAPIStack(Stack):
         trigger_lambda_cr.node.add_dependency(opensearch_serverless_access_policy)
         trigger_lambda_cr.node.add_dependency(opensearch_serverless_collection)
 
-        # # Create the Bedrock KB
-        # bedrock_knowledge_base = aws_bedrock.CfnKnowledgeBase(
-        #     self,
-        #     "BedrockKB",
-        #     name="kbdocs",
-        #     description="Bedrock knowledge base that contains a relevant documents for the chatbot",
-        #     role_arn=bedrock_kb_role.role_arn,
-        #     knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.KnowledgeBaseConfigurationProperty(
-        #         type="VECTOR",
-        #         vector_knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.VectorKnowledgeBaseConfigurationProperty(
-        #             embedding_model_arn=f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v1"
-        #         ),
-        #     ),
-        #     storage_configuration=aws_bedrock.CfnKnowledgeBase.StorageConfigurationProperty(
-        #         type="OPENSEARCH_SERVERLESS",
-        #         opensearch_serverless_configuration=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessConfigurationProperty(
-        #             collection_arn=opensearch_serverless_collection.attr_arn,
-        #             vector_index_name=index_name,
-        #             field_mapping=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessFieldMappingProperty(
-        #                 metadata_field="AMAZON_BEDROCK_METADATA",  # Must match to Lambda Function
-        #                 text_field="AMAZON_BEDROCK_TEXT_CHUNK",  # Must match to Lambda Function
-        #                 vector_field="bedrock-knowledge-base-default-vector",  # Must match to Lambda Function
-        #             ),
-        #         ),
-        #     ),
-        # )
+        # Create the Bedrock KB
+        bedrock_knowledge_base = aws_bedrock.CfnKnowledgeBase(
+            self,
+            "BedrockKB",
+            name="kbdocs",
+            description="Bedrock knowledge base that contains a relevant documents for the chatbot",
+            role_arn=bedrock_kb_role.role_arn,
+            knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.KnowledgeBaseConfigurationProperty(
+                type="VECTOR",
+                vector_knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.VectorKnowledgeBaseConfigurationProperty(
+                    embedding_model_arn=f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v1"
+                ),
+            ),
+            storage_configuration=aws_bedrock.CfnKnowledgeBase.StorageConfigurationProperty(
+                type="OPENSEARCH_SERVERLESS",
+                opensearch_serverless_configuration=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessConfigurationProperty(
+                    collection_arn=opensearch_serverless_collection.attr_arn,
+                    vector_index_name=index_name,
+                    field_mapping=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessFieldMappingProperty(
+                        metadata_field="AMAZON_BEDROCK_METADATA",  # Must match to Lambda Function
+                        text_field="AMAZON_BEDROCK_TEXT_CHUNK",  # Must match to Lambda Function
+                        vector_field="bedrock-knowledge-base-default-vector",  # Must match to Lambda Function
+                    ),
+                ),
+            ),
+        )
 
-        # # Create the datasource for the bedrock KB
-        # bedrock_data_source = aws_bedrock.CfnDataSource(
-        #     self,
-        #     "Bedrock-DataSource",
-        #     name="KbDataSource",
-        #     knowledge_base_id=bedrock_knowledge_base.ref,
-        #     description="The S3 data source definition for the bedrock knowledge base",
-        #     data_source_configuration=aws_bedrock.CfnDataSource.DataSourceConfigurationProperty(
-        #         s3_configuration=aws_bedrock.CfnDataSource.S3DataSourceConfigurationProperty(
-        #             bucket_arn=s3_bucket_kb.bucket_arn,
-        #             inclusion_prefixes=["docs"],
-        #         ),
-        #         type="S3",
-        #     ),
-        #     vector_ingestion_configuration=aws_bedrock.CfnDataSource.VectorIngestionConfigurationProperty(
-        #         chunking_configuration=aws_bedrock.CfnDataSource.ChunkingConfigurationProperty(
-        #             chunking_strategy="FIXED_SIZE",
-        #             fixed_size_chunking_configuration=aws_bedrock.CfnDataSource.FixedSizeChunkingConfigurationProperty(
-        #                 max_tokens=300, overlap_percentage=20
-        #             ),
-        #         )
-        #     ),
-        # )
-        # # Only trigger the custom resource when the kb is completed
-        # bedrock_data_source.node.add_dependency(bedrock_knowledge_base)
+        # Add dependencies to the KB
+        bedrock_knowledge_base.add_dependency(opensearch_serverless_collection)
 
-        # TODO: Add the automation for the KB ingestion
-        # ... (manual for now when docs refreshed... could be automated)
+        # Create the datasource for the bedrock KB
+        bedrock_data_source = aws_bedrock.CfnDataSource(
+            self,
+            "Bedrock-DataSource",
+            name="KbDataSource",
+            knowledge_base_id=bedrock_knowledge_base.ref,
+            description="The S3 data source definition for the bedrock knowledge base",
+            data_source_configuration=aws_bedrock.CfnDataSource.DataSourceConfigurationProperty(
+                s3_configuration=aws_bedrock.CfnDataSource.S3DataSourceConfigurationProperty(
+                    bucket_arn=s3_bucket_kb.bucket_arn,
+                    inclusion_prefixes=["docs"],
+                ),
+                type="S3",
+            ),
+            vector_ingestion_configuration=aws_bedrock.CfnDataSource.VectorIngestionConfigurationProperty(
+                chunking_configuration=aws_bedrock.CfnDataSource.ChunkingConfigurationProperty(
+                    chunking_strategy="FIXED_SIZE",
+                    fixed_size_chunking_configuration=aws_bedrock.CfnDataSource.FixedSizeChunkingConfigurationProperty(
+                        max_tokens=300, overlap_percentage=20
+                    ),
+                )
+            ),
+        )
+        # Only trigger the custom resource when the kb is completed
+        bedrock_data_source.node.add_dependency(bedrock_knowledge_base)
+        bedrock_data_source.node.add_dependency(trigger_lambda_cr)
+
+        # # TODO: Add the automation for the KB ingestion
+        # # ... (manual for now when docs refreshed... could be automated)
 
         # Create the Bedrock Agent with KB and Agent Groups
         self.bedrock_agent = aws_bedrock.CfnAgent(
@@ -892,12 +900,12 @@ class ChatbotAPIStack(Stack):
                     ),
                 ),
             ],
-            # knowledge_bases=[
-            #     aws_bedrock.CfnAgent.AgentKnowledgeBaseProperty(
-            #         description="The knowledge base for the agent that contains the relevant documents for the chatbot",
-            #         knowledge_base_id=bedrock_knowledge_base.ref,
-            #     )
-            # ],
+            knowledge_bases=[
+                aws_bedrock.CfnAgent.AgentKnowledgeBaseProperty(
+                    description="The knowledge base for the agent that contains the relevant documents for the chatbot",
+                    knowledge_base_id=bedrock_knowledge_base.ref,
+                )
+            ],
         )
 
         # Create an alias for the bedrock agent
