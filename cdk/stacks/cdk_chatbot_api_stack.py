@@ -833,7 +833,7 @@ class ChatbotAPIStack(Stack):
         )
 
         # Add dependencies to the KB
-        bedrock_knowledge_base.add_dependency(opensearch_serverless_collection)
+        bedrock_knowledge_base.node.add_dependency(trigger_lambda_cr)
 
         # Create the datasource for the bedrock KB
         bedrock_data_source = aws_bedrock.CfnDataSource(
@@ -860,7 +860,6 @@ class ChatbotAPIStack(Stack):
         )
         # Only trigger the custom resource when the kb is completed
         bedrock_data_source.node.add_dependency(bedrock_knowledge_base)
-        bedrock_data_source.node.add_dependency(trigger_lambda_cr)
 
         # # TODO: Add the automation for the KB ingestion
         # # ... (manual for now when docs refreshed... could be automated)
