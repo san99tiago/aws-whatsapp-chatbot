@@ -30,8 +30,8 @@ def handler(event, context):
                     "type": "knn_vector",
                     "dimension": 1536,
                     "method": {
-                        "space_type": "innerproduct",
-                        "engine": "FAISS",
+                        "space_type": "l2",
+                        "engine": "faiss",
                         "name": "hnsw",
                         "parameters": {
                             "m": 16,
