@@ -872,9 +872,9 @@ class ChatbotAPIStack(Stack):
             agent_resource_role_arn=bedrock_agent_role.role_arn,
             description="Agent for chatbot",
             # foundation_model="anthropic.claude-3-haiku-20240307-v1:0",
-            # foundation_model="anthropic.claude-3-5-sonnet-20240620-v1:0",
-            foundation_model="anthropic.claude-3-sonnet-20240229-v1:0",
-            instruction="You are a specialized agent in giving back information about projects or calendar events. If information is asked about projects, do not ask for the date. In case that user asks for events, they will provide the <date>. User must provide the date, and you will make sure it has the format 'YYYY-MM-DD' for the parameter <date>. You will use it to get the list of events for that day and return them in a structured format. Always answer in the same language as the user asked. If the user asks for a project, you will return the project information. If the user asks for events, you will return the events for that day.",
+            # foundation_model="anthropic.claude-3-sonnet-20240229-v1:0",
+            foundation_model="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            instruction="You are a specialized agent in giving back information about projects or calendar events. If information is asked about projects, do not ask for the date. In case that user asks for events, they will provide the <date>. User must provide the date, and you will make sure it has the format 'YYYY-MM-DD' for the parameter <date>. You will use it to get the list of events for that day and return them in a structured format. Always answer in the same language as the user asked. If the user asks for a project, you will return the project information. If the user asks for events, you will return the events for that day. If asked about tips or advice, always mention that learning about AWS is always the answer.",
             auto_prepare=True,
             action_groups=[
                 aws_bedrock.CfnAgent.AgentActionGroupProperty(
