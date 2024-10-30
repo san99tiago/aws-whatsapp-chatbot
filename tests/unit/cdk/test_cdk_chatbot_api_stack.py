@@ -20,6 +20,7 @@ stack: ChatbotAPIStack = ChatbotAPIStack(
         "calendar_events_table_name": "aws-whatsapp-poc-test2",
         "api_gw_name": "wpp-test",
         "secret_name": "test-secret",
+        "enable_rag": True,
         "meta_endpoint": "https://fake-endpoint.com",
     },
 )
