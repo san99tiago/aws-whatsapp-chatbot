@@ -55,6 +55,9 @@ class ChatbotAPIStack(Stack):
         self.app_config = app_config
         self.deployment_environment = self.app_config["deployment_environment"]
 
+        # Parameter to enable/disable RAG
+        self.enable_rag = self.app_config["enable_rag"]
+
         # Main methods for the deployment
         self.import_secrets()
         self.create_dynamodb_table()
@@ -632,234 +635,237 @@ class ChatbotAPIStack(Stack):
         )
 
         # Create the S3 bucket for uploading the KB assets
-        s3_bucket_kb = aws_s3.Bucket(
-            self,
-            "S3-KB",
-            bucket_name=f"{self.main_resources_name}-kb-assets-{self.account}",
-            auto_delete_objects=True,
-            versioned=True,
-            encryption=aws_s3.BucketEncryption.S3_MANAGED,
-            block_public_access=aws_s3.BlockPublicAccess.BLOCK_ALL,
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-        s3_bucket_kb.grant_read_write(aws_iam.ServicePrincipal("bedrock.amazonaws.com"))
+        if self.enable_rag:
+            s3_bucket_kb = aws_s3.Bucket(
+                self,
+                "S3-KB",
+                bucket_name=f"{self.main_resources_name}-kb-assets-{self.account}",
+                auto_delete_objects=True,
+                versioned=True,
+                encryption=aws_s3.BucketEncryption.S3_MANAGED,
+                block_public_access=aws_s3.BlockPublicAccess.BLOCK_ALL,
+                removal_policy=RemovalPolicy.DESTROY,
+            )
+            s3_bucket_kb.grant_read_write(
+                aws_iam.ServicePrincipal("bedrock.amazonaws.com")
+            )
 
-        # Upload assets to S3 bucket KB at deployment time
-        s3d.BucketDeployment(
-            self,
-            "S3Upload-KB",
-            sources=[s3d.Source.asset(PATH_TO_KB_FOLDER)],
-            destination_bucket=s3_bucket_kb,
-            destination_key_prefix="docs/",
-        )
+            # Upload assets to S3 bucket KB at deployment time
+            s3d.BucketDeployment(
+                self,
+                "S3Upload-KB",
+                sources=[s3d.Source.asset(PATH_TO_KB_FOLDER)],
+                destination_bucket=s3_bucket_kb,
+                destination_key_prefix="docs/",
+            )
 
-        # Create opensearch serverless collection requires a security policy of type encryption. The policy must be a string and the resource contains the collections it is applied to.
-        opensearch_serverless_encryption_policy = oss.CfnSecurityPolicy(
-            self,
-            "OpenSearchServerlessEncryptionPolicy",
-            name="encryption-policy",
-            policy='{"Rules":[{"ResourceType":"collection","Resource":["collection/*"]}],"AWSOwnedKey":true}',
-            type="encryption",
-            description="Encryption policy for the opensearch serverless collection",
-        )
+            # Create opensearch serverless collection requires a security policy of type encryption. The policy must be a string and the resource contains the collections it is applied to.
+            opensearch_serverless_encryption_policy = oss.CfnSecurityPolicy(
+                self,
+                "OpenSearchServerlessEncryptionPolicy",
+                name="encryption-policy",
+                policy='{"Rules":[{"ResourceType":"collection","Resource":["collection/*"]}],"AWSOwnedKey":true}',
+                type="encryption",
+                description="Encryption policy for the opensearch serverless collection",
+            )
 
-        # We also need a security policy of type network so that the collection becomes accessable. The policy must be a string and the resource contains the collections it is applied to.
-        opensearch_serverless_network_policy = oss.CfnSecurityPolicy(
-            self,
-            "OpenSearchServerlessNetworkPolicy",
-            name="network-policy",
-            policy='[{"Description":"Public access for collection","Rules":[{"ResourceType":"dashboard","Resource":["collection/*"]},{"ResourceType":"collection","Resource":["collection/*"]}],"AllowFromPublic":true}]',
-            type="network",
-            description="Network policy for the opensearch serverless collection",
-        )
+            # We also need a security policy of type network so that the collection becomes accessable. The policy must be a string and the resource contains the collections it is applied to.
+            opensearch_serverless_network_policy = oss.CfnSecurityPolicy(
+                self,
+                "OpenSearchServerlessNetworkPolicy",
+                name="network-policy",
+                policy='[{"Description":"Public access for collection","Rules":[{"ResourceType":"dashboard","Resource":["collection/*"]},{"ResourceType":"collection","Resource":["collection/*"]}],"AllowFromPublic":true}]',
+                type="network",
+                description="Network policy for the opensearch serverless collection",
+            )
 
-        # Create the OpenSearch Collection
-        opensearch_serverless_collection = oss.CfnCollection(
-            self,
-            "OpenSearchCollection-KB ",
-            name="pdf-collection",
-            description="Collection for the PDF documents",
-            standby_replicas="DISABLED",
-            type="VECTORSEARCH",
-        )
+            # Create the OpenSearch Collection
+            opensearch_serverless_collection = oss.CfnCollection(
+                self,
+                "OpenSearchCollection-KB ",
+                name="pdf-collection",
+                description="Collection for the PDF documents",
+                standby_replicas="DISABLED",
+                type="VECTORSEARCH",
+            )
 
-        opensearch_serverless_collection.add_dependency(
-            opensearch_serverless_encryption_policy
-        )
-        opensearch_serverless_collection.add_dependency(
-            opensearch_serverless_network_policy
-        )
+            opensearch_serverless_collection.add_dependency(
+                opensearch_serverless_encryption_policy
+            )
+            opensearch_serverless_collection.add_dependency(
+                opensearch_serverless_network_policy
+            )
 
-        # Role for the Bedrock KB
-        bedrock_kb_role = aws_iam.Role(
-            self,
-            "IAMRole-BedrockKB",
-            role_name=f"{self.main_resources_name}-bedrock-kb-role",
-            assumed_by=aws_iam.ServicePrincipal("bedrock.amazonaws.com"),
-            managed_policies=[
-                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonBedrockFullAccess"
-                ),
-                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonOpenSearchServiceFullAccess"
-                ),
-                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonS3FullAccess"
-                ),
-                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "CloudWatchLogsFullAccess"
-                ),
-                # TROUBLESHOOTING: Add additional permissions for the KB
-                aws_iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AdministratorAccess"
-                ),  # TODO: DELETE THIS LINE IN PRODUCTION
-            ],
-        )
-
-        # Create a Custom Resource for the OpenSearch Index (not supported by CDK yet)
-        # TODO: Replace to L1 or L2 construct when available!!!!!!
-        # Define the index name
-        index_name = "kb-docs"
-
-        # Define the Lambda function that creates a new index in the opensearch serverless collection
-        create_index_lambda = aws_lambda.Function(
-            self,
-            "Index",
-            runtime=aws_lambda.Runtime.PYTHON_3_11,
-            handler="create_oss_index.handler",
-            code=aws_lambda.Code.from_asset(PATH_TO_CUSTOM_RESOURCES),
-            timeout=Duration.seconds(60),
-            environment={
-                "COLLECTION_ENDPOINT": opensearch_serverless_collection.attr_collection_endpoint,
-                "INDEX_NAME": index_name,
-                "REGION": self.region,
-            },
-            layers=[self.lambda_layer_common],  # To add requests library
-        )
-
-        # Define IAM permission policy for the Lambda function. This function calls the OpenSearch Serverless API to create a new index in the collection and must have the "aoss" permissions.
-        create_index_lambda.role.add_to_principal_policy(
-            aws_iam.PolicyStatement(
-                effect=aws_iam.Effect.ALLOW,
-                actions=[
-                    "es:ESHttpPut",
-                    "es:*",
-                    "iam:CreateServiceLinkedRole",
-                    "iam:PassRole",
-                    "iam:ListUsers",
-                    "iam:ListRoles",
-                    "aoss:*",
+            # Role for the Bedrock KB
+            bedrock_kb_role = aws_iam.Role(
+                self,
+                "IAMRole-BedrockKB",
+                role_name=f"{self.main_resources_name}-bedrock-kb-role",
+                assumed_by=aws_iam.ServicePrincipal("bedrock.amazonaws.com"),
+                managed_policies=[
+                    aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                        "AmazonBedrockFullAccess"
+                    ),
+                    aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                        "AmazonOpenSearchServiceFullAccess"
+                    ),
+                    aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                        "AmazonS3FullAccess"
+                    ),
+                    aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                        "CloudWatchLogsFullAccess"
+                    ),
+                    # TROUBLESHOOTING: Add additional permissions for the KB
+                    aws_iam.ManagedPolicy.from_aws_managed_policy_name(
+                        "AdministratorAccess"
+                    ),  # TODO: DELETE THIS LINE IN PRODUCTION
                 ],
-                resources=["*"],
             )
-        )
 
-        # Finally we can create a complete data access policy for the collection that also includes the lambda function that will create the index. The policy must be a string and the resource contains the collections it is applied to.
-        opensearch_serverless_access_policy = oss.CfnAccessPolicy(
-            self,
-            "OpenSearchServerlessAccessPolicy",
-            name=f"{self.main_resources_name}-data-access-policy",
-            policy=f'[{{"Description":"Access for bedrock","Rules":[{{"ResourceType":"index","Resource":["index/*/*"],"Permission":["aoss:*"]}},{{"ResourceType":"collection","Resource":["collection/*"],"Permission":["aoss:*"]}}],"Principal":["{bedrock_agent_role.role_arn}","{bedrock_kb_role.role_arn}","{create_index_lambda.role.role_arn}","arn:aws:iam::{self.account}:root"]}}]',
-            type="data",
-            description="Data access policy for the opensearch serverless collection",
-        )
+            # Create a Custom Resource for the OpenSearch Index (not supported by CDK yet)
+            # TODO: Replace to L1 or L2 construct when available!!!!!!
+            # Define the index name
+            index_name = "kb-docs"
 
-        # Add dependencies to the collection
-        opensearch_serverless_collection.add_dependency(
-            opensearch_serverless_access_policy
-        )
-
-        # Define the request body for the lambda invoke api call that the custom resource will use
-        aossLambdaParams = {
-            "FunctionName": create_index_lambda.function_name,
-            "InvocationType": "RequestResponse",
-        }
-
-        # On creation of the stack, trigger the Lambda function we just defined
-        trigger_lambda_cr = cr.AwsCustomResource(
-            self,
-            "IndexCreateCustomResource",
-            on_create=cr.AwsSdkCall(
-                service="Lambda",
-                action="invoke",
-                parameters=aossLambdaParams,
-                physical_resource_id=cr.PhysicalResourceId.of("Parameter.ARN"),
-            ),
-            policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
-                resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE
-            ),
-            removal_policy=RemovalPolicy.DESTROY,
-            timeout=Duration.seconds(120),
-        )
-
-        # Define IAM permission policy for the custom resource
-        trigger_lambda_cr.grant_principal.add_to_principal_policy(
-            aws_iam.PolicyStatement(
-                effect=aws_iam.Effect.ALLOW,
-                actions=["lambda:*", "iam:CreateServiceLinkedRole", "iam:PassRole"],
-                resources=["*"],
+            # Define the Lambda function that creates a new index in the opensearch serverless collection
+            create_index_lambda = aws_lambda.Function(
+                self,
+                "Index",
+                runtime=aws_lambda.Runtime.PYTHON_3_11,
+                handler="create_oss_index.handler",
+                code=aws_lambda.Code.from_asset(PATH_TO_CUSTOM_RESOURCES),
+                timeout=Duration.seconds(60),
+                environment={
+                    "COLLECTION_ENDPOINT": opensearch_serverless_collection.attr_collection_endpoint,
+                    "INDEX_NAME": index_name,
+                    "REGION": self.region,
+                },
+                layers=[self.lambda_layer_common],  # To add requests library
             )
-        )
 
-        # Only trigger the custom resource after the opensearch access policy has been applied to the collection
-        trigger_lambda_cr.node.add_dependency(opensearch_serverless_access_policy)
-        trigger_lambda_cr.node.add_dependency(opensearch_serverless_collection)
-
-        # Create the Bedrock KB
-        bedrock_knowledge_base = aws_bedrock.CfnKnowledgeBase(
-            self,
-            "BedrockKB",
-            name="kbdocs",
-            description="Bedrock knowledge base that contains a relevant projects for the user.",
-            role_arn=bedrock_kb_role.role_arn,
-            knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.KnowledgeBaseConfigurationProperty(
-                type="VECTOR",
-                vector_knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.VectorKnowledgeBaseConfigurationProperty(
-                    embedding_model_arn=f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v1"
-                ),
-            ),
-            storage_configuration=aws_bedrock.CfnKnowledgeBase.StorageConfigurationProperty(
-                type="OPENSEARCH_SERVERLESS",
-                opensearch_serverless_configuration=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessConfigurationProperty(
-                    collection_arn=opensearch_serverless_collection.attr_arn,
-                    vector_index_name=index_name,
-                    field_mapping=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessFieldMappingProperty(
-                        metadata_field="AMAZON_BEDROCK_METADATA",  # Must match to Lambda Function
-                        text_field="AMAZON_BEDROCK_TEXT_CHUNK",  # Must match to Lambda Function
-                        vector_field="bedrock-knowledge-base-default-vector",  # Must match to Lambda Function
-                    ),
-                ),
-            ),
-        )
-
-        # Add dependencies to the KB
-        bedrock_knowledge_base.node.add_dependency(trigger_lambda_cr)
-
-        # Create the datasource for the bedrock KB
-        bedrock_data_source = aws_bedrock.CfnDataSource(
-            self,
-            "Bedrock-DataSource",
-            name="KbDataSource",
-            knowledge_base_id=bedrock_knowledge_base.ref,
-            description="The S3 data source definition for the bedrock knowledge base containing information about projects.",
-            data_source_configuration=aws_bedrock.CfnDataSource.DataSourceConfigurationProperty(
-                s3_configuration=aws_bedrock.CfnDataSource.S3DataSourceConfigurationProperty(
-                    bucket_arn=s3_bucket_kb.bucket_arn,
-                    inclusion_prefixes=["docs"],
-                ),
-                type="S3",
-            ),
-            vector_ingestion_configuration=aws_bedrock.CfnDataSource.VectorIngestionConfigurationProperty(
-                chunking_configuration=aws_bedrock.CfnDataSource.ChunkingConfigurationProperty(
-                    chunking_strategy="FIXED_SIZE",
-                    fixed_size_chunking_configuration=aws_bedrock.CfnDataSource.FixedSizeChunkingConfigurationProperty(
-                        max_tokens=300, overlap_percentage=20
-                    ),
+            # Define IAM permission policy for the Lambda function. This function calls the OpenSearch Serverless API to create a new index in the collection and must have the "aoss" permissions.
+            create_index_lambda.role.add_to_principal_policy(
+                aws_iam.PolicyStatement(
+                    effect=aws_iam.Effect.ALLOW,
+                    actions=[
+                        "es:ESHttpPut",
+                        "es:*",
+                        "iam:CreateServiceLinkedRole",
+                        "iam:PassRole",
+                        "iam:ListUsers",
+                        "iam:ListRoles",
+                        "aoss:*",
+                    ],
+                    resources=["*"],
                 )
-            ),
-        )
-        # Only trigger the custom resource when the kb is completed
-        bedrock_data_source.node.add_dependency(bedrock_knowledge_base)
+            )
+
+            # Finally we can create a complete data access policy for the collection that also includes the lambda function that will create the index. The policy must be a string and the resource contains the collections it is applied to.
+            opensearch_serverless_access_policy = oss.CfnAccessPolicy(
+                self,
+                "OpenSearchServerlessAccessPolicy",
+                name=f"{self.main_resources_name}-data-access-policy",
+                policy=f'[{{"Description":"Access for bedrock","Rules":[{{"ResourceType":"index","Resource":["index/*/*"],"Permission":["aoss:*"]}},{{"ResourceType":"collection","Resource":["collection/*"],"Permission":["aoss:*"]}}],"Principal":["{bedrock_agent_role.role_arn}","{bedrock_kb_role.role_arn}","{create_index_lambda.role.role_arn}","arn:aws:iam::{self.account}:root"]}}]',
+                type="data",
+                description="Data access policy for the opensearch serverless collection",
+            )
+
+            # Add dependencies to the collection
+            opensearch_serverless_collection.add_dependency(
+                opensearch_serverless_access_policy
+            )
+
+            # Define the request body for the lambda invoke api call that the custom resource will use
+            aossLambdaParams = {
+                "FunctionName": create_index_lambda.function_name,
+                "InvocationType": "RequestResponse",
+            }
+
+            # On creation of the stack, trigger the Lambda function we just defined
+            trigger_lambda_cr = cr.AwsCustomResource(
+                self,
+                "IndexCreateCustomResource",
+                on_create=cr.AwsSdkCall(
+                    service="Lambda",
+                    action="invoke",
+                    parameters=aossLambdaParams,
+                    physical_resource_id=cr.PhysicalResourceId.of("Parameter.ARN"),
+                ),
+                policy=cr.AwsCustomResourcePolicy.from_sdk_calls(
+                    resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE
+                ),
+                removal_policy=RemovalPolicy.DESTROY,
+                timeout=Duration.seconds(120),
+            )
+
+            # Define IAM permission policy for the custom resource
+            trigger_lambda_cr.grant_principal.add_to_principal_policy(
+                aws_iam.PolicyStatement(
+                    effect=aws_iam.Effect.ALLOW,
+                    actions=["lambda:*", "iam:CreateServiceLinkedRole", "iam:PassRole"],
+                    resources=["*"],
+                )
+            )
+
+            # Only trigger the custom resource after the opensearch access policy has been applied to the collection
+            trigger_lambda_cr.node.add_dependency(opensearch_serverless_access_policy)
+            trigger_lambda_cr.node.add_dependency(opensearch_serverless_collection)
+
+            # Create the Bedrock KB
+            bedrock_knowledge_base = aws_bedrock.CfnKnowledgeBase(
+                self,
+                "BedrockKB",
+                name="kbdocs",
+                description="Bedrock knowledge base that contains a relevant projects for the user.",
+                role_arn=bedrock_kb_role.role_arn,
+                knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.KnowledgeBaseConfigurationProperty(
+                    type="VECTOR",
+                    vector_knowledge_base_configuration=aws_bedrock.CfnKnowledgeBase.VectorKnowledgeBaseConfigurationProperty(
+                        embedding_model_arn=f"arn:aws:bedrock:{self.region}::foundation-model/amazon.titan-embed-text-v1"
+                    ),
+                ),
+                storage_configuration=aws_bedrock.CfnKnowledgeBase.StorageConfigurationProperty(
+                    type="OPENSEARCH_SERVERLESS",
+                    opensearch_serverless_configuration=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessConfigurationProperty(
+                        collection_arn=opensearch_serverless_collection.attr_arn,
+                        vector_index_name=index_name,
+                        field_mapping=aws_bedrock.CfnKnowledgeBase.OpenSearchServerlessFieldMappingProperty(
+                            metadata_field="AMAZON_BEDROCK_METADATA",  # Must match to Lambda Function
+                            text_field="AMAZON_BEDROCK_TEXT_CHUNK",  # Must match to Lambda Function
+                            vector_field="bedrock-knowledge-base-default-vector",  # Must match to Lambda Function
+                        ),
+                    ),
+                ),
+            )
+
+            # Add dependencies to the KB
+            bedrock_knowledge_base.node.add_dependency(trigger_lambda_cr)
+
+            # Create the datasource for the bedrock KB
+            bedrock_data_source = aws_bedrock.CfnDataSource(
+                self,
+                "Bedrock-DataSource",
+                name="KbDataSource",
+                knowledge_base_id=bedrock_knowledge_base.ref,
+                description="The S3 data source definition for the bedrock knowledge base containing information about projects.",
+                data_source_configuration=aws_bedrock.CfnDataSource.DataSourceConfigurationProperty(
+                    s3_configuration=aws_bedrock.CfnDataSource.S3DataSourceConfigurationProperty(
+                        bucket_arn=s3_bucket_kb.bucket_arn,
+                        inclusion_prefixes=["docs"],
+                    ),
+                    type="S3",
+                ),
+                vector_ingestion_configuration=aws_bedrock.CfnDataSource.VectorIngestionConfigurationProperty(
+                    chunking_configuration=aws_bedrock.CfnDataSource.ChunkingConfigurationProperty(
+                        chunking_strategy="FIXED_SIZE",
+                        fixed_size_chunking_configuration=aws_bedrock.CfnDataSource.FixedSizeChunkingConfigurationProperty(
+                            max_tokens=300, overlap_percentage=20
+                        ),
+                    )
+                ),
+            )
+            # Only trigger the custom resource when the kb is completed
+            bedrock_data_source.node.add_dependency(bedrock_knowledge_base)
 
         # # TODO: Add the automation for the KB ingestion
         # # ... (manual for now when docs refreshed... could be automated)
@@ -867,13 +873,13 @@ class ChatbotAPIStack(Stack):
         # Create the Bedrock Agent with KB and Agent Groups
         self.bedrock_agent = aws_bedrock.CfnAgent(
             self,
-            "BedrockAgentV2",
-            agent_name=f"{self.main_resources_name}-agent-v2",
+            "BedrockAgentV1",
+            agent_name=f"{self.main_resources_name}-agent-v1",
             agent_resource_role_arn=bedrock_agent_role.role_arn,
             description="Agent for chatbot",
-            # foundation_model="anthropic.claude-3-haiku-20240307-v1:0",
+            foundation_model="anthropic.claude-3-haiku-20240307-v1:0",
             # foundation_model="anthropic.claude-3-sonnet-20240229-v1:0",
-            foundation_model="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            # foundation_model="anthropic.claude-3-5-sonnet-20240620-v1:0",
             instruction="You are a specialized agent in giving back information about projects or calendar events. If information is asked about projects, do not ask for the date. In case that user asks for events, they will provide the <date>. User must provide the date, and you will make sure it has the format 'YYYY-MM-DD' for the parameter <date>. You will use it to get the list of events for that day and return them in a structured format. Always answer in the same language as the user asked. If the user asks for a project, you will return the project information. If the user asks for events, you will return the events for that day. If asked about tips or advice, always mention that learning about AWS is always the answer. Never give back additional information than the one requested (only the corresponding projects, events or advice).",
             auto_prepare=True,
             action_groups=[
@@ -901,12 +907,18 @@ class ChatbotAPIStack(Stack):
                     ),
                 ),
             ],
-            knowledge_bases=[
-                aws_bedrock.CfnAgent.AgentKnowledgeBaseProperty(
-                    description="The knowledge base for the agent that contains the relevant projects of the user.",
-                    knowledge_base_id=bedrock_knowledge_base.ref,
-                )
-            ],
+            knowledge_bases=(
+                [
+                    (
+                        aws_bedrock.CfnAgent.AgentKnowledgeBaseProperty(
+                            description="The knowledge base for the agent that contains the relevant projects of the user.",
+                            knowledge_base_id=bedrock_knowledge_base.ref,
+                        )
+                    ),
+                ]
+                if self.enable_rag
+                else None
+            ),
         )
 
         # Create an alias for the bedrock agent
