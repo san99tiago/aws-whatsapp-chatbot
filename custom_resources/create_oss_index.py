@@ -79,5 +79,8 @@ def handler(event, context):
             sleep(5)
             continue
 
+        # Additional wait time for the index to be created and processed at CF Deploy time
+        sleep(30)
+
         print(f"Index create SUCCESS - status: {response.text}")
         break

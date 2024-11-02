@@ -734,7 +734,7 @@ class ChatbotAPIStack(Stack):
                 runtime=aws_lambda.Runtime.PYTHON_3_11,
                 handler="create_oss_index.handler",
                 code=aws_lambda.Code.from_asset(PATH_TO_CUSTOM_RESOURCES),
-                timeout=Duration.seconds(60),
+                timeout=Duration.seconds(300),
                 environment={
                     "COLLECTION_ENDPOINT": opensearch_serverless_collection.attr_collection_endpoint,
                     "INDEX_NAME": index_name,
@@ -795,7 +795,7 @@ class ChatbotAPIStack(Stack):
                     resources=cr.AwsCustomResourcePolicy.ANY_RESOURCE
                 ),
                 removal_policy=RemovalPolicy.DESTROY,
-                timeout=Duration.seconds(120),
+                timeout=Duration.seconds(300),
             )
 
             # Define IAM permission policy for the custom resource
