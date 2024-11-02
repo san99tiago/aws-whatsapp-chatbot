@@ -840,7 +840,7 @@ class ChatbotAPIStack(Stack):
 
             # Add dependencies to the KB
             bedrock_knowledge_base.add_dependency(opensearch_serverless_collection)
-            bedrock_knowledge_base.add_dependency(trigger_lambda_cr)
+            bedrock_knowledge_base.node.add_dependency(trigger_lambda_cr)
 
             # Create the datasource for the bedrock KB
             bedrock_data_source = aws_bedrock.CfnDataSource(
