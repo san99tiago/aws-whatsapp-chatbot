@@ -1,12 +1,23 @@
-name: deploy
+name: Deploy
+run-name: Deploy Chatbot to ${{ github.event.inputs.environment }}
 
 on:
-  push:
-    branches: ["main", "feature/*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Choose Environment to Deploy"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
 
 env:
   AWS_DEFAULT_REGION: us-east-1
   AWS_DEFAULT_OUTPUT: json
+  # IMPORTANT FOR THE CDK DEPLOYMENT ENV
+  DEPLOYMENT_ENVIRONMENT: ${{ github.event.inputs.environment }}
 
 jobs:
   code-quality:
@@ -102,7 +113,7 @@ jobs:
       # Same task with different secrets depending on the branch ref (dev vs prod deployments)
       # Note: there might be better alternatives, but this is a way to deploy to both envs
       - name: Configure AWS Credentials (DEV)
-        if: github.ref != 'refs/heads/main'
+        if: github.event.inputs.environment == 'dev'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
@@ -110,24 +121,12 @@ jobs:
           role-session-name: GitHubActionsCICD
 
       - name: Configure AWS Credentials (PROD)
-        if: github.ref == 'refs/heads/main'
+        if: github.event.inputs.environment == 'prod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.PROD_AWS_ACCOUNT_ID }}:role/${{ secrets.PROD_AWS_DEPLOY_ROLE }}
           role-session-name: GitHubActionsCICD
-
-      # Not 100% optimal, but does the work for setting deployment environments from branch
-      - name: Setup Deployment Environment from Branch
-        run: |
-          # To update the deployment environment based on the git branch
-          if [[ $GITHUB_REF == 'refs/heads/main' ]]; then
-            echo "DEPLOYMENT_ENVIRONMENT=prod" >> "$GITHUB_ENV"
-            echo "Deployment environment is PROD"
-          else
-            echo "DEPLOYMENT_ENVIRONMENT=dev" >> "$GITHUB_ENV"
-            echo "Deployment environment is DEV"
-          fi
 
       - name: CDK Synth
         run: |
@@ -210,7 +209,7 @@ jobs:
       # Same task with different secrets depending on the branch ref (dev vs prod deployments)
       # Note: there might be better alternatives, but this is a way to deploy to both envs
       - name: Configure AWS Credentials (DEV)
-        if: github.ref != 'refs/heads/main'
+        if: github.event.inputs.environment == 'dev'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
@@ -218,24 +217,12 @@ jobs:
           role-session-name: GitHubActionsCICD
 
       - name: Configure AWS Credentials (PROD)
-        if: github.ref == 'refs/heads/main'
+        if: github.event.inputs.environment == 'prod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.PROD_AWS_ACCOUNT_ID }}:role/${{ secrets.PROD_AWS_DEPLOY_ROLE }}
           role-session-name: GitHubActionsCICD
-
-      # Not 100% optimal, but does the work for setting deployment environments from branch
-      - name: Setup Deployment Environment from Branch
-        run: |
-          # To update the deployment environment based on the git branch
-          if [[ $GITHUB_REF == 'refs/heads/main' ]]; then
-            echo "DEPLOYMENT_ENVIRONMENT=prod" >> "$GITHUB_ENV"
-            echo "Deployment environment is PROD"
-          else
-            echo "DEPLOYMENT_ENVIRONMENT=dev" >> "$GITHUB_ENV"
-            echo "Deployment environment is DEV"
-          fi
 
       - name: CDK Deploy
         run: |

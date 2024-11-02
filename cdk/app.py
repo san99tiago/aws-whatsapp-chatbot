@@ -20,7 +20,7 @@ app: cdk.App = cdk.App()
 
 
 # Configurations for the deployment (obtained from env vars and CDK context)
-DEPLOYMENT_ENVIRONMENT = os.environ.get("DEPLOYMENT_ENVIRONMENT", "prod")
+DEPLOYMENT_ENVIRONMENT = os.environ["DEPLOYMENT_ENVIRONMENT"]  # Fail if not set
 MAIN_RESOURCES_NAME = app.node.try_get_context("main_resources_name")
 # TODO: enhance app_config to be a data class (improve keys/typings)
 APP_CONFIG = app.node.try_get_context("app_config")[DEPLOYMENT_ENVIRONMENT]
