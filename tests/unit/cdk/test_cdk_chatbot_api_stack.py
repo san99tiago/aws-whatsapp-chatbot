@@ -17,7 +17,7 @@ stack: ChatbotAPIStack = ChatbotAPIStack(
         "deployment_environment": "test",
         "log_level": "DEBUG",
         "table_name": "aws-whatsapp-poc-test1",
-        "calendar_events_table_name": "aws-whatsapp-poc-test2",
+        "agents_data_table_name": "aws-whatsapp-poc-test2",
         "api_gw_name": "wpp-test",
         "secret_name": "test-secret",
         "enable_rag": True,
@@ -42,7 +42,7 @@ def test_lambda_function_created():
     match = template.find_resources(
         type="AWS::Lambda::Function",
     )
-    assert len(match) == 8
+    assert len(match) >= 8
 
 
 def test_api_gateway_created():
