@@ -10,6 +10,7 @@ from state_machine.utils.validate_message import ValidateMessage  # noqa
 
 # Processing
 from state_machine.processing.process_text import ProcessText  # noqa
+from state_machine.processing.process_voice import ProcessVoice  # noqa
 from state_machine.processing.send_message import SendMessage  # noqa
 
 # Utils

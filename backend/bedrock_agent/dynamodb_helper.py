@@ -12,7 +12,7 @@ dynamodb_resource = boto3.resource("dynamodb")
 table = dynamodb_resource.Table(TABLE_NAME)
 
 
-def get_all_calendar_events(partition_key: str, sort_key_portion: str) -> list[dict]:
+def query_dynamodb_pk_sk(partition_key: str, sort_key_portion: str) -> list[dict]:
     """
     Function to run a query against DynamoDB with partition key and the sort
     key with <begins-with> functionality on it.
@@ -20,7 +20,7 @@ def get_all_calendar_events(partition_key: str, sort_key_portion: str) -> list[d
     :param sort_key_portion (str): sort key portion to use in query.
     """
     print(
-        f"Starting get_all_calendar_events with "
+        f"Starting query_dynamodb_pk_sk with "
         f"pk: ({partition_key}) and sk: ({sort_key_portion})"
     )
 

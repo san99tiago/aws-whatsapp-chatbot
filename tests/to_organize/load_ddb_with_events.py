@@ -1,5 +1,5 @@
 # DEMO SCRIPT TO LOAD SAMPLE DATA TO DYNAMODB
-import boto3
+import os, boto3
 
 # TODO: Replace the items with your own data... Parametrize this script... Improve it...
 
@@ -61,8 +61,9 @@ items = [
 ]
 
 # Load data to DynamoDB
+deployment_environment = os.environ["DEPLOYMENT_ENVIRONMENT"]
 dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table("aws-whatsapp-calendar-prod")
+table = dynamodb.Table(f"aws-whatsapp-agents-data-{deployment_environment}")
 
 for item in items:
     table.put_item(Item=item)

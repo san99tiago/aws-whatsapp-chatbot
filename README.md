@@ -14,9 +14,17 @@ How is the Generative-AI approach implemented on top of AWS?
 - Bedrock Agents to enable APIs and Database requests to fetch live data as part of the chain-of-thought process.
 - State Machine for different workflow's processing based on the user's input (text, voice-message, etc).
 
+## State Machine Process :fallen_leaf:
+
+The processing of messages is powered by an AWS Step Function that has multiple tasks based on the user's input:
+
+<img src="assets/WhatsApp_Chatbot_StateMachine.PNG" width=50%> <br>
+
 ## Results (WhatsApp Assistant Demo) 🔮
 
-<img src="assets/WhatsApp_Chatbot_Results_01.PNG" width=40%> <br>
+<img src="assets/WhatsApp_Chatbot_Results_01.PNG" width=35%> <img src="assets/WhatsApp_Chatbot_Results_02.PNG" width=35%>
+
+<img src="assets/WhatsApp_Chatbot_Results_03.PNG" width=35%> <img src="assets/WhatsApp_Chatbot_Results_04.PNG" width=35%>
 
 ## Manual Steps (Only Once) :raised_hand:
 

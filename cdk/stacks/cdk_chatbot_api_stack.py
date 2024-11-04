@@ -243,19 +243,20 @@ class ChatbotAPIStack(Stack):
         )
 
         # Lambda for the Action Group (used for Bedrock Agents)
-        self.lambda_fetch_calendar_events = aws_lambda.Function(
+        # Note: Single Lambda for all Action Groups for now...
+        self.lambda_action_groups = aws_lambda.Function(
             self,
-            "Lambda-AG-FetchCalendarEvents",
+            "Lambda-AG-Generic",
             runtime=aws_lambda.Runtime.PYTHON_3_11,
             handler="bedrock_agent/lambda_function.lambda_handler",
-            function_name=f"{self.main_resources_name}-bedrock-action-group-calendar-events",
+            function_name=f"{self.main_resources_name}-bedrock-action-groups",
             code=aws_lambda.Code.from_asset(PATH_TO_LAMBDA_FUNCTION_FOLDER),
             timeout=Duration.seconds(60),
             memory_size=512,
             environment={
                 "ENVIRONMENT": self.app_config["deployment_environment"],
                 "LOG_LEVEL": self.app_config["log_level"],
-                "TABLE_NAME": self.app_config["calendar_events_table_name"],
+                "TABLE_NAME": self.app_config["agents_data_table_name"],
             },
             role=bedrock_agent_lambda_role,
         )
@@ -417,6 +418,23 @@ class ChatbotAPIStack(Stack):
             output_path="$.Payload",
         )
 
+        self.task_process_voice = aws_sfn_tasks.LambdaInvoke(
+            self,
+            "Task-ProcessVoice",
+            state_name="Process Voice",
+            lambda_function=self.lambda_state_machine_process_message,
+            payload=aws_sfn.TaskInput.from_object(
+                {
+                    "event.$": "$",
+                    "params": {
+                        "class_name": "ProcessVoice",
+                        "method_name": "process_voice",
+                    },
+                }
+            ),
+            output_path="$.Payload",
+        )
+
         self.task_send_message = aws_sfn_tasks.LambdaInvoke(
             self,
             "Task-SendMessage",
@@ -511,7 +529,9 @@ class ChatbotAPIStack(Stack):
         self.task_pass_text.next(
             self.task_process_text.next(self.task_send_message),
         )
-        self.task_pass_voice.next(self.task_not_implemented)
+        self.task_pass_voice.next(
+            self.task_process_voice.next(self.task_pass_text),
+        )
         self.task_pass_image.next(self.task_not_implemented)
         self.task_pass_video.next(self.task_not_implemented)
 
@@ -579,10 +599,10 @@ class ChatbotAPIStack(Stack):
         )
 
         # Generic "PK" and "SK", to leverage Single-Table-Design
-        self.calendar_events_dynamodb_table = aws_dynamodb.Table(
+        self.agents_data_dynamodb_table = aws_dynamodb.Table(
             self,
-            "DynamoDB-Table-CalendarEvents",
-            table_name=self.app_config["calendar_events_table_name"],
+            "DynamoDB-Table-AgentsData",
+            table_name=self.app_config["agents_data_table_name"],
             partition_key=aws_dynamodb.Attribute(
                 name="PK", type=aws_dynamodb.AttributeType.STRING
             ),
@@ -592,12 +612,12 @@ class ChatbotAPIStack(Stack):
             billing_mode=aws_dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.DESTROY,
         )
-        Tags.of(self.calendar_events_dynamodb_table).add(
-            "Name", self.app_config["table_name"]
+        Tags.of(self.agents_data_dynamodb_table).add(
+            "Name", self.app_config["agents_data_table_name"]
         )
 
         # Add permissions to the Lambda function resource policy. You use a resource-based policy to allow an AWS service to invoke your function.
-        self.lambda_fetch_calendar_events.add_permission(
+        self.lambda_action_groups.add_permission(
             "AllowBedrock",
             principal=aws_iam.ServicePrincipal("bedrock.amazonaws.com"),
             action="lambda:InvokeFunction",
@@ -881,14 +901,14 @@ class ChatbotAPIStack(Stack):
             foundation_model="anthropic.claude-3-haiku-20240307-v1:0",
             # foundation_model="anthropic.claude-3-sonnet-20240229-v1:0",
             # foundation_model="anthropic.claude-3-5-sonnet-20240620-v1:0",
-            instruction="You are a specialized agent in giving back information about projects or calendar events. If information is asked about projects, do not ask for the date. In case that user asks for events, they will provide the <date>. User must provide the date, and you will make sure it has the format 'YYYY-MM-DD' for the parameter <date>. You will use it to get the list of events for that day and return them in a structured format. Always answer in the same language as the user asked. If the user asks for a project, you will return the project information. If the user asks for events, you will return the events for that day. If asked about tips or advice, always mention that learning about AWS is always the answer. Never give back additional information than the one requested (only the corresponding projects, events or advice).",
+            instruction="You are a specialized agent in giving back information about projects, calendar events, contacts or TODOs. If information is asked about projects, contacts or TODOs, do NOT ask for the date. In case that user asks for events, they must provide the <date> and you will make sure it has the format 'YYYY-MM-DD' for the parameter <date> when looking for events and you will use it to get the list of events for that day and return them in a structured format. Always answer in the same language as the user asked. If the user asks for a project, you will return the project information. If the user asks for TODOs, you will return the TODOs from the <FetchTODOs> action group. If the user asks for Contacts, you will return the Contacts from the <FetchContacts> action group. If the user asks for events, you will return the events for that day. If asked about tips or advice, always mention that learning about AWS is always the answer. Never give back additional information than the one requested (only the corresponding projects, events or advice). Always answer back politely to the user by saying his name: 'Santi'.",
             auto_prepare=True,
             action_groups=[
                 aws_bedrock.CfnAgent.AgentActionGroupProperty(
                     action_group_name="FetchCalendarEvents",
                     description="A function that is able to fetch the calendar events from the database from an input date.",
                     action_group_executor=aws_bedrock.CfnAgent.ActionGroupExecutorProperty(
-                        lambda_=self.lambda_fetch_calendar_events.function_arn,
+                        lambda_=self.lambda_action_groups.function_arn,
                     ),
                     function_schema=aws_bedrock.CfnAgent.FunctionSchemaProperty(
                         functions=[
@@ -903,6 +923,38 @@ class ChatbotAPIStack(Stack):
                                         required=True,
                                     ),
                                 },
+                            )
+                        ]
+                    ),
+                ),
+                aws_bedrock.CfnAgent.AgentActionGroupProperty(
+                    action_group_name="FetchTODOs",
+                    description="A function that is able to fetch the TODOs from the database.",
+                    action_group_executor=aws_bedrock.CfnAgent.ActionGroupExecutorProperty(
+                        lambda_=self.lambda_action_groups.function_arn,
+                    ),
+                    function_schema=aws_bedrock.CfnAgent.FunctionSchemaProperty(
+                        functions=[
+                            aws_bedrock.CfnAgent.FunctionProperty(
+                                name="FetchTODOs",
+                                # the properties below are optional
+                                description="Function to fetch the TODOs",
+                            )
+                        ]
+                    ),
+                ),
+                aws_bedrock.CfnAgent.AgentActionGroupProperty(
+                    action_group_name="FetchContacts",
+                    description="A function that is able to fetch the Contacts from the database.",
+                    action_group_executor=aws_bedrock.CfnAgent.ActionGroupExecutorProperty(
+                        lambda_=self.lambda_action_groups.function_arn,
+                    ),
+                    function_schema=aws_bedrock.CfnAgent.FunctionSchemaProperty(
+                        functions=[
+                            aws_bedrock.CfnAgent.FunctionProperty(
+                                name="FetchContacts",
+                                # the properties below are optional
+                                description="Function to fetch the Contacts",
                             )
                         ]
                     ),
