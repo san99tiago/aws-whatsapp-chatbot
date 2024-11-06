@@ -4,6 +4,10 @@
 
 My Serverless WhatsApp chatbot on AWS, serving as a personal assistant with access to my private data.
 
+- It is able to assist me with my private data related to Events/Contacts/TODOs/Projects/Tips/etc...
+
+> Feel free to clone it and extend it to your own company information/data (at your own risk/responsibility)
+
 ## Architecture :memo:
 
 <img src="assets/aws-whatsapp-chatbot.png" width=90%> <br>
