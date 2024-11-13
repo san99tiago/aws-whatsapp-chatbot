@@ -8,6 +8,8 @@ My Serverless WhatsApp chatbot on AWS, serving as a personal assistant with acce
 
 > Feel free to clone it and extend it to your own company information/data (at your own risk/responsibility)
 
+- [SLIDES_BoyaConf_2024_Chatbot_WhatsApp_AWS](./assets/SLIDES_BoyaConf_2024_Chatbot_WhatsApp_AWS.pdf)
+
 ## Architecture :memo:
 
 <img src="assets/aws-whatsapp-chatbot.png" width=90%> <br>
