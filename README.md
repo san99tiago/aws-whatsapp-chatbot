@@ -8,6 +8,9 @@ My Serverless WhatsApp chatbot on AWS, serving as a personal assistant with acce
 
 > Feel free to clone it and extend it to your own company information/data (at your own risk/responsibility)
 
+## Detailed Tutorials :bulb:
+
+- [YouTube Tutorial by Santi: Chatbot de WhatsApp Serverless en AWS con Generative-AI (Spanish)](https://youtu.be/9LMtXSYBZ-c)
 - [SLIDES_BoyaConf_2024_Chatbot_WhatsApp_AWS](./assets/SLIDES_BoyaConf_2024_Chatbot_WhatsApp_AWS.pdf)
 
 ## Architecture :memo:
