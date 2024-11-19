@@ -15,6 +15,7 @@
         "agents_data_table_name": "aws-whatsapp-agents-data-dev",
         "api_gw_name": "wpp-dev",
         "secret_name": "/dev/aws-whatsapp-chatbot",
+        "comment": "Update the <enable_rag> to <true> in case that support for RAG with PDFs is required. Warning: could be expensive.",
         "enable_rag": false,
         "meta_endpoint": "https://graph.facebook.com/"
       },
@@ -25,7 +26,8 @@
         "agents_data_table_name": "aws-whatsapp-agents-data-prod",
         "api_gw_name": "wpp-prod",
         "secret_name": "/prod/aws-whatsapp-chatbot",
-        "enable_rag": true,
+        "comment": "Update the <enable_rag> to <true> in case that support for RAG with PDFs is required. Warning: could be expensive.",
+        "enable_rag": false,
         "meta_endpoint": "https://graph.facebook.com/"
       }
     }
