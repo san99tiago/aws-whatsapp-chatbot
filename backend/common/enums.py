@@ -8,25 +8,28 @@ class WhatsAppMessageTypes(Enum):
     IMAGE: str = "image"
     VIDEO: str = "video"
     VOICE: str = "voice"
+    AUDIO: str = "audio"
 
 
-# TODO: Actually use these prefixes for my DynamoDB Table Single Table Design
 class DDBPrefixes(Enum):
     """
-    Enumerations for DynamoDB Partition Keys and Sort Keys for whatsapp
-    conversations and chats.
+    Enumerations for DynamoDB Partition Keys and Sort Keys for WhatsApp
+    conversations, chats and auth sessions.
     """
 
     PK_NUMBER = "NUMBER#"
-    SK_NUMBER_DATA = "NUMBER#"
-    SK_CHAT_INPUT = "CHAT#INPUT#"
-    SK_CHAT_OUTPUT = "CHAT#OUTPUT#"
+    SK_MESSAGE = "MESSAGE#"
+    PK_USER = "USER#"
+    PK_USERNAME = "USERNAME#"
+    SK_AUTH = "AUTH"
+    SK_AUTH_PROMPTED = "AUTH#PROMPTED"
+    SK_MAPPING = "MAPPING"
 
 
-if __name__ == "__main__":
-    print(WhatsAppMessageTypes.__members__)
+class StateMachineMessageTypes(Enum):
+    """
+    Extra (internal) message types used to route the State Machine Choice state
+    (additional to the native WhatsApp message types).
+    """
 
-    values_list = [member.value for member in WhatsAppMessageTypes]
-    print(values_list)
-
-    print("texts" in values_list)
+    AUTH_PROMPT = "auth_prompt"

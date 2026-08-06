@@ -1,0 +1,68 @@
+{
+  "app": "(cd .. && make -s install 1>&2) && ../.venv/bin/python cdk/app.py",
+  "context": {
+    "tags": {
+      "Owner": "Santiago Garcia Arango",
+      "Source": "https://github.com/san99tiago/aws-whatsapp-chatbot",
+      "Usage": "WhatsApp Generative-AI chatbot on AWS with Bedrock AgentCore Runtime + Strands Agents + optional Cognito Auth Portal"
+    },
+    "app_config": {
+      "dev": {
+        "main_resources_name": "aws-wpp",
+        "deployment_environment": "dev",
+        "log_level": "DEBUG",
+        "bot_name": "SantiBank Assistant",
+        "language": "SPANISH",
+        "comment_secret": "IMPORTANT: the secret MUST be created manually BEFORE the first deployment (see GETTING_STARTED.md). Keys: AWS_API_KEY_TOKEN, META_TOKEN, META_FROM_PHONE_NUMBER_ID",
+        "secret_name": "/prod/aws-whatsapp-chatbot",
+        "meta_endpoint": "https://graph.facebook.com/",
+        "meta_api_version": "v26.0",
+        "comment_dns": "MANDATORY PREREQUISITE: you MUST own a Route53 Hosted Zone. REPLACE <hosted_zone_name> and <hosted_zone_id> below with YOUR OWN zone values (and adjust the subdomains if desired). The current values are the author's defaults and will NOT work in your AWS account",
+        "hosted_zone_name": "cb.events.genai.aws.dev",
+        "hosted_zone_id": "Z0422199173AVFEWSD3SF",
+        "api_webhook_subdomain": "wpp-api-webhook-aws-dev",
+        "api_gw_name_webhook": "webhook-api",
+        "table_name_messages": "messages",
+        "comment_auth": "When <auth_enabled> is false, the Auth Portal Stack (Cognito, CloudFront, Auth API, auth-sessions table) is NOT deployed and the State Machine bypasses auth (all users are incognito). The demo users password and the main demo phone number come from the local <.env> file (see .env.example)",
+        "auth_enabled": true,
+        "auth_portal_subdomain": "web-portal-auth-dev",
+        "api_gw_name_auth": "auth-api",
+        "table_name_auth_sessions": "auth-sessions",
+        "auth_session_ttl_seconds": 600,
+        "comment_agentcore": "AgentCore Runtime with Strands Agent deployed via direct code deploy (ZIP). Model configured below (Bedrock cross-region inference profile)",
+        "bedrock_model_id": "us.anthropic.claude-sonnet-5",
+        "agentcore_runtime_name": "demo_agent",
+        "table_name_bank_clients": "bank-clients",
+        "ssm_param_agentcore_runtime_arn": "agentcore-runtime-arn"
+      },
+      "prod": {
+        "main_resources_name": "aws-wpp",
+        "deployment_environment": "prod",
+        "log_level": "DEBUG",
+        "bot_name": "SantiBank Assistant",
+        "language": "SPANISH",
+        "comment_secret": "IMPORTANT: the secret MUST be created manually BEFORE the first deployment (see GETTING_STARTED.md). Keys: AWS_API_KEY_TOKEN, META_TOKEN, META_FROM_PHONE_NUMBER_ID",
+        "secret_name": "/prod/aws-whatsapp-chatbot",
+        "meta_endpoint": "https://graph.facebook.com/",
+        "meta_api_version": "v26.0",
+        "comment_dns": "MANDATORY PREREQUISITE: you MUST own a Route53 Hosted Zone. REPLACE <hosted_zone_name> and <hosted_zone_id> below with YOUR OWN zone values (and adjust the subdomains if desired). The current values are the author's defaults and will NOT work in your AWS account",
+        "hosted_zone_name": "cb.events.genai.aws.dev",
+        "hosted_zone_id": "Z0422199173AVFEWSD3SF",
+        "api_webhook_subdomain": "wpp-api-webhook-aws",
+        "api_gw_name_webhook": "webhook-api",
+        "table_name_messages": "messages",
+        "comment_auth": "When <auth_enabled> is false, the Auth Portal Stack (Cognito, CloudFront, Auth API, auth-sessions table) is NOT deployed and the State Machine bypasses auth (all users are incognito). The demo users password and the main demo phone number come from the local <.env> file (see .env.example)",
+        "auth_enabled": true,
+        "auth_portal_subdomain": "web-portal-auth",
+        "api_gw_name_auth": "auth-api",
+        "table_name_auth_sessions": "auth-sessions",
+        "auth_session_ttl_seconds": 600,
+        "comment_agentcore": "AgentCore Runtime with Strands Agent deployed via direct code deploy (ZIP). Model configured below (Bedrock cross-region inference profile)",
+        "bedrock_model_id": "us.anthropic.claude-sonnet-5",
+        "agentcore_runtime_name": "demo_agent",
+        "table_name_bank_clients": "bank-clients",
+        "ssm_param_agentcore_runtime_arn": "agentcore-runtime-arn"
+      }
+    }
+  }
+}

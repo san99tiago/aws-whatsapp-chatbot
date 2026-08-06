@@ -30,6 +30,10 @@ def lambda_handler(event: DynamoDBStreamEvent, context: LambdaContext):
     logger.info("Starting message processing from DynamoDB Stream")
     try:
         for record in event.records:
+            # Only process NEW messages (skip REMOVE/MODIFY events, e.g. cleanups)
+            if record.event_name.name != "INSERT":
+                logger.info(f"Skipping {record.event_name.name} stream event")
+                continue
             correlation_id = record.dynamodb.new_image.get("correlation_id")
             logger.append_keys(correlation_id=correlation_id)
             logger.debug(record.raw_event, message_details="DynamoDB Stream Record")

@@ -1,11 +1,10 @@
 # Built-in imports
 import os
 from datetime import datetime, timezone
-from typing import Annotated
 from uuid import uuid4
 
 # External imports
-from fastapi import APIRouter, Header, Query, Request, Response, status
+from fastapi import APIRouter, Query, Request, Response, status
 
 # Own imports
 from common.models.text_message_model import TextMessageModel
@@ -29,29 +28,37 @@ logger = custom_logger()
 
 @router.get("/webhook", tags=["Chatbot"])
 async def get_chatbot_webhook(
+    hub_mode_query_param: str = Query("subscribe", alias="hub.mode"),
     hub_challenge_query_param: str = Query(..., alias="hub.challenge"),
     hub_verify_token_query_param: str = Query(..., alias="hub.verify_token"),
 ):
+    """
+    META Webhook verification endpoint (GET). META sends <hub.challenge> and
+    <hub.verify_token>, and expects the challenge echoed back when the token
+    matches the one configured in the AWS Secret (key: AWS_API_KEY_TOKEN).
+    """
     try:
         correlation_id = str(uuid4())
         logger.append_keys(correlation_id=correlation_id)
         logger.info("Started chatbot handler for get_chatbot_webhook()")
-        logger.info("Finished get_chatbot_webhook() successfully")
-
-        # TODO: Remove these logs after initial validations
-        logger.debug(f"hub_challenge_query_param: {hub_challenge_query_param}")
-        logger.debug(f"hub_verify_token_query_param: {hub_verify_token_query_param}")
+        logger.debug(f"hub_mode_query_param: {hub_mode_query_param}")
 
         # TODO: MIGRATE TOKEN VALIDATION TO DEDICATED AUTHORIZER!!!
         AWS_API_KEY_TOKEN = secrets_helper.get_secret_value("AWS_API_KEY_TOKEN")
         if hub_verify_token_query_param == AWS_API_KEY_TOKEN:
+            logger.info("Webhook verification successful (token matched)")
             return Response(
                 content=hub_challenge_query_param,
                 status_code=status.HTTP_200_OK,
                 headers={"Content-Type": "text/html;charset=UTF-8"},
             )
 
-        return {"error": "Invalid authorization or authentication"}
+        logger.warning("Webhook verification failed (invalid verify token)")
+        return Response(
+            content='{"error": "Invalid authorization or authentication"}',
+            status_code=status.HTTP_403_FORBIDDEN,
+            headers={"Content-Type": "application/json"},
+        )
 
     except Exception as e:
         logger.error(f"Error in get_chatbot_webhook(): {e}")
@@ -63,23 +70,28 @@ async def post_chatbot_webhook(
     request: Request,  # Only for initial debugging purposes
     input_body: dict,
 ):
+    """
+    META Webhook callback endpoint (POST). Receives WhatsApp events (messages,
+    statuses, etc.) and stores supported user messages in DynamoDB. The DynamoDB
+    Stream then asynchronously triggers the processing State Machine.
+    """
     try:
         correlation_id = str(uuid4())
         logger.append_keys(correlation_id=correlation_id)
-        logger.info(
-            input_body, message_details="Received body in post_chatbot_webhook()"
-        )
         logger.info("Started chatbot handler for post_chatbot_webhook()")
-        logger.info("Finished post_chatbot_webhook() successfully")
-
-        # TODO: Remove these logs after initial validations
+        logger.debug(input_body, message_details="Received body")
         logger.debug(f"HEADERS: {request.headers}")
-        logger.debug(f"QUERY_PARAMS: {request.query_params}")
-        logger.debug(f"PATH_PARAMS: {request.path_params}")
-        logger.debug(f"INPUT_BODY: {input_body}")
 
-        # Intentionally break code if parsing fails
-        message = input_body["entry"][0]["changes"][0]["value"]["messages"][0]
+        # Gracefully acknowledge non-message events (e.g. delivery/read statuses)
+        webhook_value = (
+            input_body.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {})
+        )
+        messages = webhook_value.get("messages")
+        if not messages:
+            logger.info("No user messages in event (likely a status update). Skipping")
+            return {"message": "ok", "details": "Event without messages (skipped)"}
+
+        message = messages[0]
         wpp_from_phone_number = message["from"]
         wpp_id = message["id"]
         wpp_timestamp = message["timestamp"]
@@ -106,13 +118,15 @@ async def post_chatbot_webhook(
             )
         # TODO: Add other types of messages (image, voice, video, etc)
 
-        # Save the message to DynamoDB
+        # Save the message to DynamoDB (messages are kept FOREVER, no TTL)
         if message_item:
             result = dynamodb_helper.put_item(message_item.model_dump())
             logger.debug(result, message_details="DynamoDB put_item() result")
+        else:
+            logger.warning(f"Unsupported message type <{wpp_type}> (not stored yet)")
 
-        result = {"message": "ok", "details": "Received message"}
-        return result
+        logger.info("Finished post_chatbot_webhook() successfully")
+        return {"message": "ok", "details": "Received message"}
 
     except Exception as e:
         logger.error(f"Error in post_chatbot_webhook(): {e}")

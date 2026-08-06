@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SantiBank | Portal de Autenticación</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --card: #ffffff;
+        --text: #1c2530;
+        --muted: #5b6b7c;
+        --primary: #0a6cff;
+        --primary-dark: #0552c8;
+        --success: #0f9d58;
+        --error: #d93025;
+        --border: #dbe2ec;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1520;
+          --card: #182130;
+          --text: #e8eef6;
+          --muted: #93a4b8;
+          --border: #2a3648;
+        }
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        width: 100%;
+        max-width: 420px;
+        padding: 2rem;
+      }
+      .logo { text-align: center; margin-bottom: 1.25rem; }
+      .logo .emoji { font-size: 2.5rem; }
+      h1 { font-size: 1.35rem; text-align: center; margin-bottom: 0.25rem; }
+      p.subtitle { color: var(--muted); text-align: center; font-size: 0.9rem; margin-bottom: 1.5rem; }
+      label { display: block; font-size: 0.85rem; color: var(--muted); margin: 0.75rem 0 0.25rem; }
+      input {
+        width: 100%;
+        padding: 0.7rem 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: transparent;
+        color: var(--text);
+        font-size: 1rem;
+      }
+      input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+      button {
+        width: 100%;
+        margin-top: 1.25rem;
+        padding: 0.8rem;
+        border: none;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover { background: var(--primary-dark); }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
+      .status { margin-top: 1rem; text-align: center; font-size: 0.9rem; display: none; }
+      .status.success { display: block; color: var(--success); }
+      .status.error { display: block; color: var(--error); }
+      .footer { margin-top: 1.5rem; text-align: center; font-size: 0.75rem; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="logo"><span class="emoji">🏦</span></div>
+      <h1>SantiBank - Portal de Autenticación</h1>
+      <p class="subtitle">
+        Inicia sesión para habilitar todas las funciones del asistente de WhatsApp
+        (válido por 10 minutos)
+      </p>
+      <form id="login-form">
+        <label for="email">Correo electrónico</label>
+        <input id="email" type="email" autocomplete="username" required placeholder="usuario@correo.com" />
+        <label for="password">Contraseña</label>
+        <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••••" />
+        <button id="submit-btn" type="submit">Iniciar sesión</button>
+      </form>
+      <div id="status" class="status"></div>
+      <div class="footer">Demo segura en AWS · Cognito + CloudFront + S3</div>
+    </main>
+
+    <script>
+      let CONFIG = null;
+
+      async function loadConfig() {
+        const response = await fetch("./config.json");
+        CONFIG = await response.json();
+      }
+
+      async function cognitoLogin(email, password) {
+        const response = await fetch(
+          `https://cognito-idp.${CONFIG.region}.amazonaws.com/`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-amz-json-1.1",
+              "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth",
+            },
+            body: JSON.stringify({
+              AuthFlow: "USER_PASSWORD_AUTH",
+              ClientId: CONFIG.userPoolClientId,
+              AuthParameters: { USERNAME: email, PASSWORD: password },
+            }),
+          }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.AuthenticationResult) {
+          throw new Error(data.message || "Credenciales inválidas");
+        }
+        return data.AuthenticationResult.AccessToken;
+      }
+
+      async function createAuthSession(accessToken) {
+        const response = await fetch(`${CONFIG.authApiUrl}/api/v1/auth`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ access_token: accessToken }),
+        });
+        const data = await response.json();
+        if (!response.ok || data.message !== "ok") {
+          throw new Error(data.details || "No fue posible crear la sesión");
+        }
+        return data;
+      }
+
+      function setStatus(kind, message) {
+        const status = document.getElementById("status");
+        status.className = `status ${kind}`;
+        status.textContent = message;
+      }
+
+      document.getElementById("login-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const button = document.getElementById("submit-btn");
+        button.disabled = true;
+        button.textContent = "Autenticando...";
+        try {
+          if (!CONFIG) await loadConfig();
+          const email = document.getElementById("email").value.trim();
+          const password = document.getElementById("password").value;
+          const accessToken = await cognitoLogin(email, password);
+          await createAuthSession(accessToken);
+          setStatus(
+            "success",
+            "✅ ¡Autenticación exitosa! Ya puedes volver a WhatsApp y usar todas las funciones del asistente."
+          );
+        } catch (err) {
+          setStatus("error", `❌ Error: ${err.message}`);
+        } finally {
+          button.disabled = false;
+          button.textContent = "Iniciar sesión";
+        }
+      });
+
+      loadConfig().catch(() => setStatus("error", "No fue posible cargar la configuración"));
+    </script>
+  </body>
+</html>

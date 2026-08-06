@@ -1,6 +1,5 @@
 # Built-in imports
 import os
-import json
 from typing import Optional
 
 # External imports
@@ -20,7 +19,6 @@ from state_machine.integrations.meta.schemas import MetaPostMessageModel
 
 SECRET_NAME = os.environ["SECRET_NAME"]
 secrets_helper = SecretsHelper(SECRET_NAME)
-auth_token = secrets_helper.get_secret_value("META_TOKEN")
 
 
 class MetaAPI:
@@ -34,7 +32,8 @@ class MetaAPI:
 
     def load_meta_configurations(self) -> None:
         """
-        Method to load Meta configurations from Secrets Manager and initialize endpoint and headers.
+        Method to load Meta configurations from Secrets Manager and initialize
+        the endpoint and headers (secret fetched lazily at runtime, NOT at import).
         """
         self.logger.debug("Loading Meta configurations from Secrets Manager...")
         self.meta_secret_json = secrets_helper.get_secret_value()
@@ -42,7 +41,7 @@ class MetaAPI:
         _meta_from_phone_number_id = self.meta_secret_json.get(
             "META_FROM_PHONE_NUMBER_ID"
         )
-        self.api_headers = get_api_headers(bearer_token=auth_token)
+        self.api_headers = get_api_headers(bearer_token=_meta_token)
         self.api_endpoint = get_api_endpoint(f"{_meta_from_phone_number_id}/messages")
 
     def post_message(
@@ -60,7 +59,6 @@ class MetaAPI:
         """
 
         self.logger.info(f"Starting POST request to Meta API: {self.api_endpoint}")
-        self.logger.debug(f"Headers to send: {self.api_headers}")
         self.logger.debug(f"text_message to send: {text_message}")
 
         # Create response model for the POST request (JSON data)
@@ -76,7 +74,8 @@ class MetaAPI:
             response = requests.post(
                 self.api_endpoint,
                 headers=self.api_headers,
-                json=message_data_model.model_dump(),
+                json=message_data_model.model_dump(exclude_none=True),
+                timeout=30,
             )
         except Exception as e:
             self.logger.exception(

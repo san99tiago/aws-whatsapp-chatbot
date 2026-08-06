@@ -1,21 +1,15 @@
-# Built-in imports
-from datetime import datetime
-
 # Own imports
 from state_machine.base_step_function import BaseStepFunction
-from common.enums import WhatsAppMessageTypes
 from common.logger import custom_logger
-
-from state_machine.processing.bedrock_agent import call_bedrock_agent
 
 
 logger = custom_logger()
-ALLOWED_MESSAGE_TYPES = WhatsAppMessageTypes.__members__
 
 
 class ProcessVoice(BaseStepFunction):
     """
-    This class contains methods that serve as the "voice processing" for the State Machine.
+    This class contains methods for the "voice processing" of the State Machine.
+    TBD: voice-to-text conversion (e.g. Amazon Transcribe) before Agent invocation.
     """
 
     def __init__(self, event):
@@ -23,17 +17,13 @@ class ProcessVoice(BaseStepFunction):
 
     def process_voice(self):
         """
-        Method to process the voice input message and convert it to text.
+        Method to process the voice input message (TBD placeholder).
         """
+        self.logger.info("Starting process_voice for the chatbot (TBD)")
 
-        self.logger.info("Starting process_voice for the chatbot")
-
-        # TODO: Add real voice to text conversion here...
-
-        self.text = "NOT IMPLEMENTED. PLEASE ANSWER: <I am not able to process voice messages yet>."
-
-        self.logger.info(f"Generated response message: {self.text}")
-
-        self.event["input"]["dynamodb"]["NewImage"]["S"] = self.text
-
+        # TODO: Add real voice to text conversion here (Amazon Transcribe)...
+        self.event["response_message"] = (
+            "🚧 Aún no puedo procesar mensajes de voz. "
+            "Por favor envía tu mensaje como texto."
+        )
         return self.event

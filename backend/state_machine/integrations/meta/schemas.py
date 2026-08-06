@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TextModel(BaseModel):
@@ -15,14 +15,8 @@ class MetaPostMessageModel(BaseModel):
     Class that represents the Model for sending messages via POST request to META API.
     """
 
-    messaging_product: str = Field(default="whatsapp")
-    to: str = Field(..., example="+12345678987")
-    type: str = Field(default="text")
-    text: TextModel
-    context: Optional[ContextModel] = None
-
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "messaging_product": "whatsapp",
                 "to": "to_phone_number",
@@ -31,3 +25,10 @@ class MetaPostMessageModel(BaseModel):
                 "context": {"message_id": "original_message_id"},
             }
         }
+    )
+
+    messaging_product: str = Field(default="whatsapp")
+    to: str
+    type: str = Field(default="text")
+    text: TextModel
+    context: Optional[ContextModel] = None

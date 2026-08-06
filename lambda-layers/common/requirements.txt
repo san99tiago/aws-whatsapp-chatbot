@@ -1,5 +1,5 @@
-fastapi==0.109.0
-mangum==0.17.0
-pydantic>=2.5.3
-pydantic_core>=2.14.6
-requests==2.32.3
+fastapi>=0.141.0,<1.0.0
+mangum>=0.21.0,<1.0.0
+pydantic>=2.12.0,<3.0.0
+requests>=2.32.0,<3.0.0
+aws-lambda-powertools>=3.31.0,<4.0.0

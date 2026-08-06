@@ -4,16 +4,17 @@ import os
 # External imports
 from urllib.parse import urljoin
 
-# Own imports
-from state_machine.integrations.meta.enums import MetaAPIVersion
-from common.helpers.secrets_helper import SecretsHelper
-
-# Load environment variables
-META_ENDPOINT = os.environ.get("META_ENDPOINT")
+# Load environment variables (configured via cdk.json app_config)
+META_ENDPOINT = os.environ.get("META_ENDPOINT", "https://graph.facebook.com/")
+META_API_VERSION = os.environ.get("META_API_VERSION", "v26.0")
 
 
 def get_api_endpoint(path: str) -> str:
-    base = META_ENDPOINT + MetaAPIVersion.V_20.value
+    """
+    Build the full META Graph API endpoint for a given path.
+    Note: the base MUST have a trailing slash so that urljoin keeps the version.
+    """
+    base = f"{META_ENDPOINT.rstrip('/')}/{META_API_VERSION}/"
     return urljoin(base, path)
 
 

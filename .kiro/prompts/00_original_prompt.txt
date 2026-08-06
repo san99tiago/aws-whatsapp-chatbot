@@ -1,0 +1,32 @@
+Act as an EXPERT software engineer in WhatsApp/META automations via WebHook/APIs with deep expertise in AWS Ecosystem. Your goal is to:
+
+
+UPDATE this repository (aws-whatsapp-chatbot) so that it covers software-python best practices, AND enhancements created at a previous internal demo (a generic "SantiBank" WhatsApp banking demo) (enhancements like the COGNITO Auth Portal in WebBrowser and default "auth message", and the more structured text/data formats for the APIs/messages/wpp transformations):
+
+
+1) Still Receives the message via API-GW, with similar auth pattern (AWS Secret, with meta IDs, and also secret).
+2) Still saves the messages in DynamoDB... but this time NO TTL, messages are kept forever.
+3) The Step Function should still be similar, with capabilities of ProcessVoice, ProcessVideo, ProcessImage TBD...
+4) The "Process Text" should be renamed to "Process Message", and the "Send Message" to "Send Response"...
+ - For the Process Message lambda, it should now be REPLACED with an API-Contract that is a JSON Request with: AGENTCORE INVOKE AGENT RUNTIME (helper to invoke, see docs: https://docs.aws.amazon.com/boto3/latest/reference/services/bedrock-agentcore/client/invoke_agent_runtime.html#), which the AgentCore Runtime ARN is going to be passed as an AWS Systems Manager Parameter, that gets passed to the Lambda as ENV-VAR, and it gets the value dynamically.
+5) There should be a stack called "agentcore-{suffixes}-stack", that has a STRANDS AGENT, with Bedrock "Claude Sonnet 5" (passed via CDK.json (config))... It deploys the AgentCore Runtime agent (via direct code deploy ZIP, instead of Docker image). It should have a "DemoAgent", with multiple tools. DIRECT TOOLS: instead of creating Lambdas, have them as Strands Tools (@tool) in PYTHON code directly. Add for each tool a "# TODO SANTI - Evaluate migration to AgentCore MCP GW Approach". The TOOLS maintain the overall "SantiBank" generic bank approach (balance, credit cards, bank channels status). Meaning that the agent is a Financial Bank Agent... But keep in README the instructions to UPDATE the entrypoint towards ANY type of agent (changes on user side).
+6) Everything should follow CDK "cdk-infrastructure" Skill, and AWS best practices. Enable a CUSTOM DNS for the API-GW endpoint with DNS in CDK.json configured: HOSTEDZONE + SUBDOMAIN (e.g. wpp-api-webhook-aws.<your-hosted-zone>).
+7) Make sure to maintain folder structure and Python Entrypoints and best practices... However, make sure to Migrate Python versions, FastAPI version, CDK version, and META API endpoint.
+8) Proceed to do a VALIDATION by executing a simulation of META Webhook/Callback API-GW request (GET and POST), with secret in mind (secret should be fetched in the solution, which is stored securely MANUALLY (FIRST PROCESS PREREQUISITE), in an AWS Secret with these keys: AWS_API_KEY_TOKEN, META_TOKEN, META_FROM_PHONE_NUMBER_ID. The SECRETNAME should be populated in CDK.json. Secret name must be: "/prod/aws-whatsapp-chatbot", with values already populated MANUALLY. Leave a readme section dedicated to this as prerequisite.
+9) As part of the deployment, make sure to include CustomResources that AUTOMATICALLY populate the DynamoDB Tables that are needed for step 5, which include the sample tool use (100% FAKE/SIMULATED bank clients seed data). CustomResource with triggers like CREATE/UPDATE stack.
+10) The AUTHENTICATION process should start via WhatsApp by asking the user to LOGIN in the Web ENDPOINT (custom DNS, like SUBDOMAIN: "web-portal-auth"), and it should be OPTIONAL, OR... "Continue as Incognito User", with capability of a minor (less) subset of tools... In the Step Function, the first part should be to validate the authenticated user (in DynamoDB with TTL of 10 mins), and if authenticated, the INVOKE for AgentCore Runtime can pass an EXTRA parameter in the contract that says "authenticated": "true", and "username": "XXXXXXX", otherwise it defaults to FALSE... This mechanism enables future "auth-based" TOOLs. In the auth portal, as soon as authenticated, proceed to UPDATE the DynamoDB table of users auth, and make sure that the info is easy to get/obtain in the workflow... The agent MUST receive this information as metadata as part of the PAYLOAD.
+11) The goal is to create a system that is SIMPLE ENOUGH to have these workflows, but with up-to-date standards, with examples, and better E2E flow.
+12) Create a DRAWIO diagram (with the skill to create them), and make sure it follows the house standards. Review the result to avoid line overlaps or visual errors.
+13) CREATE detailed readme.md and also check deployment via CDK works as expected. Create the necessary "tests" folder with unit-tests of FastAPI, helpers, and overall solution.
+
+
+EXTRA REQUIREMENTS:
+- All logging via Python, EXTRA LOGGING, in DEBUG mode active, via AWS Lambda PowerTools (PYTHON).
+- ENABLE CloudWatch LOGGING for all solutions that can have it (APIGW, AgentCore, etc...).
+- Have the "resource-name" convention in all resources.
+- USE CDK.JSON (config) for ALL CONFIGURATIONS needed that could change. Include also Bedrock model, table names, etc...
+- Personal/sensitive demo values (real phone number, demo users password) MUST come from a local <.env> file (see .env.example), NEVER committed.
+- Use Python, with Python POETRY for dependencies management.
+- Create a Getting Started README, additionally to main, that explains the "pre-requisites", including META Account creation, and AWS Secrets Manager, and any extra step.
+- Create the necessary Python Helpers for the solution.
+- Check up-to-date META/AWS documentation if needed.
