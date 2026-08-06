@@ -16,6 +16,7 @@ from aws_cdk import (
     aws_logs,
     aws_route53,
     aws_route53_targets,
+    aws_s3,
     aws_secretsmanager,
     aws_stepfunctions as aws_sfn,
     aws_stepfunctions_tasks as aws_sfn_tasks,
@@ -86,6 +87,7 @@ class ChatbotAPIStack(Stack):
         # Main methods for the deployment
         self.import_secrets()
         self.create_dynamodb_table_messages()
+        self.create_s3_bucket_audio()
         self.create_lambda_layers()
         self.create_lambda_functions()
         self.create_dynamodb_streams()
@@ -139,6 +141,32 @@ class ChatbotAPIStack(Stack):
                 if self.deployment_environment == "prod"
                 else RemovalPolicy.DESTROY
             ),
+        )
+
+    def create_s3_bucket_audio(self):
+        """
+        Method to create the (private) S3 bucket for the WhatsApp audio files
+        fetched from META (input for the Amazon Transcribe SYNC jobs).
+        """
+        self.s3_bucket_audio = aws_s3.Bucket(
+            self,
+            "S3Bucket-Audio",
+            bucket_name=(
+                f"{self.main_resources_name}-audio-{self.account}"
+                f"-{self.deployment_environment}"
+            ),
+            public_read_access=False,
+            block_public_access=aws_s3.BlockPublicAccess.BLOCK_ALL,
+            encryption=aws_s3.BucketEncryption.S3_MANAGED,
+            enforce_ssl=True,
+            lifecycle_rules=[
+                aws_s3.LifecycleRule(
+                    id="ExpireAudioFiles",
+                    expiration=Duration.days(30),
+                )
+            ],
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True,
         )
 
     def create_lambda_layers(self):
@@ -215,7 +243,7 @@ class ChatbotAPIStack(Stack):
             runtime=aws_lambda.Runtime.PYTHON_3_13,
             handler="state_machine/state_machine_handler.lambda_handler",
             code=aws_lambda.Code.from_asset(PATH_TO_BACKEND_FOLDER),
-            timeout=Duration.seconds(120),
+            timeout=Duration.minutes(5),  # Covers the Transcribe SYNC polling
             memory_size=512,
             layers=[self.lambda_layer_common],
             log_retention=aws_logs.RetentionDays.ONE_MONTH,
@@ -237,9 +265,12 @@ class ChatbotAPIStack(Stack):
                 ),
                 # Bank clients table (profile metadata for hyperpersonalization)
                 "TABLE_NAME_BANK_CLIENTS": self.table_name_bank_clients,
+                # Audio bucket (Fetch Audio -> Transcribe Audio SYNC flow)
+                "AUDIO_BUCKET_NAME": self.s3_bucket_audio.bucket_name,
             },
         )
         self.secret_chatbot.grant_read(self.lambda_state_machine)
+        self.s3_bucket_audio.grant_read_write(self.lambda_state_machine)
 
     def create_dynamodb_streams(self):
         """Method to create the DynamoDB Stream trigger for the State Machine."""
@@ -410,11 +441,17 @@ class ChatbotAPIStack(Stack):
             "ProcessMessage",
             "process_message",
         )
-        self.task_process_voice = self._create_lambda_task(
-            "Task-ProcessVoice",
-            "Process Voice (TBD)",
-            "ProcessVoice",
-            "process_voice",
+        self.task_fetch_audio = self._create_lambda_task(
+            "Task-FetchAudio",
+            "Fetch Audio (META media)",
+            "FetchAudio",
+            "fetch_audio",
+        )
+        self.task_transcribe_audio = self._create_lambda_task(
+            "Task-TranscribeAudio",
+            "Transcribe Audio (Sync)",
+            "TranscribeAudio",
+            "transcribe_audio",
         )
         self.task_process_image = self._create_lambda_task(
             "Task-ProcessImage",
@@ -448,7 +485,11 @@ class ChatbotAPIStack(Stack):
         )
 
         # Retries for the most critical tasks (Agent invocation and META API)
-        for task in [self.task_process_message, self.task_send_response]:
+        for task in [
+            self.task_fetch_audio,
+            self.task_process_message,
+            self.task_send_response,
+        ]:
             task.add_retry(
                 errors=["States.ALL"],
                 interval=Duration.seconds(1),
@@ -497,7 +538,7 @@ class ChatbotAPIStack(Stack):
                 aws_sfn.Condition.string_equals("$.message_type", "voice"),
                 aws_sfn.Condition.string_equals("$.message_type", "audio"),
             ),
-            self.task_process_voice,
+            self.task_fetch_audio,
         )
         self.choice_message_type.when(
             aws_sfn.Condition.string_equals("$.message_type", "image"),
@@ -509,11 +550,13 @@ class ChatbotAPIStack(Stack):
         )
         self.choice_message_type.otherwise(self.task_not_implemented)
 
-        # Main flow
+        # Main flow (audio: Fetch Audio -> Transcribe Audio -> Process Message,
+        # re-utilizing the transcribed text as the Agent's prompt)
         self.task_validate_message.next(self.task_check_auth)
         self.task_check_auth.next(self.choice_message_type)
+        self.task_fetch_audio.next(self.task_transcribe_audio)
+        self.task_transcribe_audio.next(self.task_process_message)
         self.task_process_message.next(self.task_send_response)
-        self.task_process_voice.next(self.task_send_response)
         self.task_process_image.next(self.task_send_response)
         self.task_process_video.next(self.task_send_response)
         self.task_not_implemented.next(self.task_send_response)
@@ -524,6 +567,8 @@ class ChatbotAPIStack(Stack):
         for task in [
             self.task_validate_message,
             self.task_check_auth,
+            self.task_fetch_audio,
+            self.task_transcribe_audio,
             self.task_process_message,
             self.task_send_response,
         ]:
@@ -592,6 +637,18 @@ class ChatbotAPIStack(Stack):
                 resources=[
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:runtime/*"
                 ],
+            )
+        )
+
+        # Amazon Transcribe (SYNC jobs for the WhatsApp audio messages)
+        self.lambda_state_machine.add_to_role_policy(
+            aws_iam.PolicyStatement(
+                sid="TranscribeAudioJobs",
+                actions=[
+                    "transcribe:StartTranscriptionJob",
+                    "transcribe:GetTranscriptionJob",
+                ],
+                resources=["*"],
             )
         )
 

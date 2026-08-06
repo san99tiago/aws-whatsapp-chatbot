@@ -86,3 +86,37 @@ class MetaAPI:
         self.logger.info(f"Response has status_code: {response.status_code}")
         self.logger.info(f"Response data: {response.text}")
         return response.json()
+
+    def get_media_url(self, media_id: str) -> dict:
+        """
+        Method to FETCH the media metadata (download URL) for a given META
+        media ID (e.g. the <audio_id> received in the WhatsApp webhook).
+
+        :param media_id (str): META media ID to fetch.
+        :return (dict): Media metadata with <url> and <mime_type> keys.
+        """
+        media_endpoint = get_api_endpoint(media_id)
+        self.logger.info(f"Fetching media URL from Meta API: {media_endpoint}")
+        response = requests.get(media_endpoint, headers=self.api_headers, timeout=30)
+        self.logger.info(f"Media URL response status_code: {response.status_code}")
+        response.raise_for_status()
+        media_info = response.json()
+        self.logger.debug(media_info, message_details="Meta media metadata")
+        return media_info
+
+    def download_media(self, media_url: str) -> bytes:
+        """
+        Method to DOWNLOAD the media binary content from the (short-lived)
+        META media URL (requires the Bearer token authorization).
+
+        :param media_url (str): Short-lived media URL returned by get_media_url.
+        :return (bytes): Raw media content (e.g. OGG/MP3 audio bytes).
+        """
+        self.logger.info("Downloading media binary content from Meta API")
+        response = requests.get(media_url, headers=self.api_headers, timeout=60)
+        self.logger.info(
+            f"Media download status_code: {response.status_code} "
+            f"(size: {len(response.content)} bytes)"
+        )
+        response.raise_for_status()
+        return response.content

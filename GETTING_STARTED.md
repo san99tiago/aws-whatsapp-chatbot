@@ -1,6 +1,6 @@
 # :rocket: GETTING STARTED
 
-Step-by-step guide to deploy the AWS WhatsApp Chatbot (AgentCore + Strands + optional Cognito Auth Portal) from ZERO.
+Step-by-step guide to deploy AWS-WHATSAPP-AGENTCORE-BACKEND (WhatsApp + AgentCore + Strands + optional Cognito Auth Portal) from ZERO.
 
 ## 1. Prerequisites (Tools)
 

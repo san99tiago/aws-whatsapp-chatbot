@@ -41,8 +41,16 @@ class ProcessMessage(BaseStepFunction):
         self.logger.info("Starting process_message for the chatbot")
 
         new_image = self.event.get("input", {}).get("dynamodb", {}).get("NewImage", {})
-        text = new_image.get("text", {}).get("S", "")
         phone_number = new_image.get("from_number", {}).get("S", "UNKNOWN")
+
+        # The prompt comes from the TEXT message, OR from the TRANSCRIBED audio
+        # (re-utilizing the output of the Fetch Audio -> Transcribe Audio steps)
+        transcribed_text = self.event.get("transcribed_text", "")
+        text = transcribed_text or new_image.get("text", {}).get("S", "")
+        if transcribed_text:
+            self.logger.info(
+                f"Re-utilizing the TRANSCRIBED audio text as prompt: {text}"
+            )
 
         # Build the structured JSON API-Contract for the Agent invocation
         # (profile metadata is ALWAYS loaded by CheckAuth for hyperpersonalization)

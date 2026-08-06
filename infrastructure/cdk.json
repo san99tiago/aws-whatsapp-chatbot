@@ -3,7 +3,7 @@
   "context": {
     "tags": {
       "Owner": "Santiago Garcia Arango",
-      "Source": "https://github.com/san99tiago/aws-whatsapp-chatbot",
+      "Source": "https://github.com/san99tiago/aws-whatsapp-agentcore-backend",
       "Usage": "WhatsApp Generative-AI chatbot on AWS with Bedrock AgentCore Runtime + Strands Agents + optional Cognito Auth Portal"
     },
     "app_config": {

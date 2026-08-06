@@ -1,6 +1,6 @@
-# :scroll: AWS-WHATSAPP-CHATBOT :scroll:
+# :scroll: AWS-WHATSAPP-AGENTCORE-BACKEND :scroll:
 
-![Latest CI/CD Action workflow](https://github.com/san99tiago/aws-whatsapp-chatbot/actions/workflows/deploy.yml/badge.svg?branch=main)
+![Latest CI/CD Action workflow](https://github.com/san99tiago/aws-whatsapp-agentcore-backend/actions/workflows/deploy.yml/badge.svg?branch=main)
 
 My Serverless WhatsApp chatbot on AWS, powered by **Amazon Bedrock AgentCore Runtime** and **Strands Agents**, with an optional **Cognito Auth Portal** for authenticated (auth-based) tools.
 
@@ -30,7 +30,8 @@ Key design decisions:
 
 - **API Gateway + Lambda (FastAPI)** receives the META WebHook with custom DNS (`wpp-api-webhook-aws.cb.events.genai.aws.dev`) and validates the verify-token against AWS Secrets Manager.
 - **DynamoDB messages table** stores every WhatsApp message **forever (NO TTL)**, and its **Stream** asynchronously triggers the processing State Machine.
-- **Step Functions (EXPRESS)** orchestrates: `Validate Message -> Check Auth -> Process Message -> Send Response` (plus TBD placeholders for Voice/Image/Video).
+- **Step Functions (EXPRESS)** orchestrates: `Validate Message -> Check Auth -> [Fetch Audio -> Transcribe Audio] -> Process Message -> Send Response` (plus TBD placeholders for Image/Video).
+- **Audio (voice notes / MP3) support**: audio messages arrive at the webhook with a META **media ID** (`audio_id`). The State Machine **fetches** it (META media URL -> binary download -> S3) and runs a **SYNC Amazon Transcribe job** (auto language detection ES/EN, with detailed step-by-step logs). The transcribed text is then **re-utilized** as the Agent's prompt in `Process Message`.
 - **Process Message** invokes the **AgentCore Runtime** via `invoke_agent_runtime` with a structured **JSON API-Contract** (`prompt` + `metadata.authenticated/username/phone_number`). The Runtime ARN is resolved dynamically from an **SSM Parameter** (name injected as ENV-VAR).
 - **AgentCore Runtime** runs the **Strands "DemoAgent"** (Financial Bank Agent) deployed via **direct code deploy (ZIP)** — no Docker image — using **Claude Sonnet 5** on Bedrock (configurable in `cdk.json`).
 - **Auth Portal (optional, `auth_enabled` in cdk.json)**: Cognito login at `web-portal-auth.cb.events.genai.aws.dev` (CloudFront + private S3) creates a 10-minute auth session in DynamoDB (TTL), whose Stream sends the "authenticated successfully" WhatsApp confirmation.
@@ -69,7 +70,7 @@ sequenceDiagram
 ## Project Structure :open_file_folder:
 
 ```
-aws-whatsapp-chatbot/
+aws-whatsapp-agentcore-backend/
 ├── Makefile                    # Root orchestrator (layers + agent package)
 ├── agent/                      # Strands DemoAgent (AgentCore ZIP direct code deploy)
 │   ├── main.py                 # BedrockAgentCoreApp entrypoint (JSON API-Contract)
@@ -144,9 +145,16 @@ Seeded automatically by the CustomResources from `infrastructure/cdk/stacks/seed
 
 ## State Machine Process :fallen_leaf:
 
-`Validate Message -> Check Auth -> (Choice) -> Process Message | Process Voice (TBD) | Process Image (TBD) | Process Video (TBD) | Auth Prompt -> Send Response -> Success`
+`Validate Message -> Check Auth -> (Choice) ->`
+- `text` -> `Process Message`
+- `audio/voice` -> `Fetch Audio (META media) -> Transcribe Audio (Sync) -> Process Message` (the transcription is re-utilized as the Agent prompt)
+- `image/video` -> `TBD placeholders`
+- `auth_prompt` -> straight to `Send Response`
 
-- Retries with exponential backoff on `Process Message` and `Send Response`.
+`-> Send Response -> Success`
+
+- **Audio pipeline**: `Fetch Audio` downloads the media by its META `audio_id` (metadata URL + Bearer download) into the private S3 audio bucket (30-day lifecycle); `Transcribe Audio` runs a SYNC Amazon Transcribe job (polling with logs, auto language ES/EN).
+- Retries with exponential backoff on `Fetch Audio`, `Process Message` and `Send Response`.
 - Failure handling via catch-all towards `Process Failure`.
 - EXPRESS State Machine with FULL CloudWatch logging (as all other components: API-GW access logs, Lambda PowerTools DEBUG logs, AgentCore observability).
 

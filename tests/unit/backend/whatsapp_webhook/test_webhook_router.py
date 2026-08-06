@@ -137,6 +137,49 @@ class TestWebhookCallbackPOST:
         assert item["text"]["S"] == "Hola SantiBank"
         assert "ttl" not in item
 
+    def test_post_webhook_audio_message_saved_with_audio_id(self, api_client):
+        audio_event = {
+            "object": "whatsapp_business_account",
+            "entry": [
+                {
+                    "id": "1111111111",
+                    "changes": [
+                        {
+                            "value": {
+                                "messaging_product": "whatsapp",
+                                "messages": [
+                                    {
+                                        "from": "573001112233",
+                                        "id": "wamid.AUDIO_TEST",
+                                        "timestamp": "1722800000",
+                                        "type": "audio",
+                                        "audio": {
+                                            "id": "MEDIA-ID-AUDIO-999",
+                                            "mime_type": "audio/ogg; codecs=opus",
+                                            "voice": True,
+                                        },
+                                    }
+                                ],
+                            },
+                            "field": "messages",
+                        }
+                    ],
+                }
+            ],
+        }
+        response = api_client.post("/api/v1/webhook", json=audio_event)
+        assert response.status_code == 200
+        assert response.json()["message"] == "ok"
+
+        # Validate the audio message was stored with its META media ID
+        dynamodb_client = boto3.client("dynamodb", region_name="us-east-1")
+        result = dynamodb_client.scan(TableName="test-messages-table")
+        audio_items = [
+            i for i in result["Items"] if i.get("type", {}).get("S") == "audio"
+        ]
+        assert len(audio_items) == 1
+        assert audio_items[0]["audio_id"]["S"] == "MEDIA-ID-AUDIO-999"
+
     def test_post_webhook_status_event_is_skipped(self, api_client):
         status_event = {
             "object": "whatsapp_business_account",

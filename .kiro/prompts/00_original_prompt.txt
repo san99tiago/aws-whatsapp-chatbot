@@ -1,7 +1,7 @@
 Act as an EXPERT software engineer in WhatsApp/META automations via WebHook/APIs with deep expertise in AWS Ecosystem. Your goal is to:
 
 
-UPDATE this repository (aws-whatsapp-chatbot) so that it covers software-python best practices, AND enhancements created at a previous internal demo (a generic "SantiBank" WhatsApp banking demo) (enhancements like the COGNITO Auth Portal in WebBrowser and default "auth message", and the more structured text/data formats for the APIs/messages/wpp transformations):
+UPDATE this repository (aws-whatsapp-agentcore-backend) so that it covers software-python best practices, AND enhancements created at a previous internal demo (a generic "SantiBank" WhatsApp banking demo) (enhancements like the COGNITO Auth Portal in WebBrowser and default "auth message", and the more structured text/data formats for the APIs/messages/wpp transformations):
 
 
 1) Still Receives the message via API-GW, with similar auth pattern (AWS Secret, with meta IDs, and also secret).

@@ -7,6 +7,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Query, Request, Response, status
 
 # Own imports
+from common.models.audio_message_model import AudioMessageModel
 from common.models.text_message_model import TextMessageModel
 from common.logger import custom_logger
 from common.helpers.dynamodb_helper import DynamoDBHelper
@@ -116,7 +117,28 @@ async def post_chatbot_webhook(
                 message_item.model_dump(),
                 message_details="Successfully created TextMessageModel instance",
             )
-        # TODO: Add other types of messages (image, voice, video, etc)
+        elif wpp_type in ("audio", "voice"):
+            # Audio/voice-note messages arrive with a META media ID that MUST
+            # be fetched later (done in the State Machine "Fetch Audio" step)
+            audio_info = message.get("audio", {}) or message.get("voice", {})
+            message_item = AudioMessageModel(
+                PK=f"NUMBER#{wpp_from_phone_number}",
+                SK=f"MESSAGE#{created_at}",
+                from_number=wpp_from_phone_number,
+                created_at=created_at,
+                type=wpp_type,
+                whatsapp_id=wpp_id,
+                whatsapp_timestamp=wpp_timestamp,
+                audio_id=audio_info["id"],
+                mime_type=audio_info.get("mime_type"),
+                voice=audio_info.get("voice"),
+                correlation_id=correlation_id,
+            )
+            logger.info(
+                message_item.model_dump(),
+                message_details="Successfully created AudioMessageModel instance",
+            )
+        # TODO: Add other types of messages (image, video, etc)
 
         # Save the message to DynamoDB (messages are kept FOREVER, no TTL)
         if message_item:

@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "aws-whatsapp-chatbot"
+name = "aws-whatsapp-agentcore-backend"
 version = "1.0.0"
 description = "WhatsApp Generative-AI chatbot on AWS with Bedrock AgentCore Runtime, Strands Agents and optional Cognito Auth Portal"
 authors = ["Santiago Garcia Arango <san99tiago@gmail.com>"]
